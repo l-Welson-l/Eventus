@@ -8,3 +8,10 @@ PyJWT==2.10.1
 python-dotenv==1.2.1
 sqlparse==0.5.4
 tzdata==2025.2
+Django>=4.2
+djangorestframework
+Pillow
+qrcode
+psycopg2-binary   # if using Postgres
+djangorestframework-simplejwt  # for JWT auth
+django-cors-headers
