@@ -1,10 +1,11 @@
 from django.db import models
-from django.contrib.auth import get_user_model
+import uuid
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 import secrets
 from datetime import timedelta
 
-User = get_user_model()
 
 # Named functions for defaults (lambda removed)
 def make_random(length=24):
@@ -16,51 +17,55 @@ def generate_admin_token():
 def generate_session_token():
     return secrets.token_urlsafe(48)
 
+class User(AbstractUser):
+    USER_TYPE_CHOICES = (
+        ('business', 'Business'),
+        ('customer', 'Customer'),
+    )
 
-class Event(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="events")
-    name = models.CharField(max_length=255)
-    venue_name = models.CharField(max_length=255, blank=True)
-    description = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+    
+    username = models.CharField(unique=True, max_length=50)
+    email = models.EmailField(unique=True)
 
-    view_code = models.CharField(max_length=16, unique=True, default=make_random)
-    admin_token = models.CharField(max_length=48, unique=True, default=generate_admin_token)
-
-    auto_approve = models.BooleanField(default=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     def __str__(self):
-        return f"{self.venue_name or self.name} ({self.id})"
-    
+        return self.email
 
-class PostingSession(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="sessions")
-    token = models.CharField(max_length=64, unique=True, default=generate_session_token)
+
+class BusinessProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="business_profile")
+    business_name = models.CharField(max_length=255)
+    address = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    valid_until = models.DateTimeField()
-    device_id = models.CharField(max_length=128, blank=True, null=True)
+    email_verified = models.BooleanField(default=False)
+    cover_photo = models.ImageField(upload_to='cover_photos/', null=True, blank=True)
 
-    @classmethod
-    def create_for_event(cls, event, hours_valid=8, device_id=None):
-        return cls.objects.create(
-            event=event,
-            token=generate_session_token(),
-            valid_until=timezone.now() + timedelta(hours=hours_valid),
-            device_id=device_id,
-        )
-
-    def is_valid(self):
-        return timezone.now() <= self.valid_until
+    def __str__(self):
+        return self.username
 
 
-class Post(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="posts")
-    session = models.ForeignKey(PostingSession, on_delete=models.SET_NULL, null=True, blank=True)
-    image = models.ImageField(upload_to="posts/%Y/%m/%d/")
-    caption = models.TextField(blank=True)
-    approved = models.BooleanField(default=True)
-    likes = models.PositiveIntegerField(default=0)
+class CustomerProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="customer_profile")
+    cover_photo = models.ImageField(upload_to='cover_photos/', null=True, blank=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+
+class AnonymousSession(models.Model):
+    session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_active = models.DateTimeField(auto_now=True)
+    email = models.EmailField(null=True, blank=True)
 
-    class Meta:
-        ordering = ["-created_at"]
+class MagicLinkToken(models.Model):
+    token = models.CharField(max_length=256, unique=True)  # we store a signed/jwt or random uuid
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+    expires_at = models.DateTimeField()
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
