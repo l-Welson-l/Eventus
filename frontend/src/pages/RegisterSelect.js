@@ -12,7 +12,7 @@ export default function RegisterSelect() {
         </Link>
 
         <Link to="/register/business" style={styles.businessBtn}>
-          Register as Business
+          Register as Business 
         </Link>
       </div>
     </div>
