@@ -34,12 +34,17 @@ services:
     container_name: react-frontend
     volumes:
       - ./frontend:/app
+      - ./frontend/public:/app/public
     ports:
       - "3000:3000"
     stdin_open: true
     tty: true
     env_file:
       - .env
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Enable file watching using polling for React
+      - NODE_ENV=development  # Ensure it's in development mode for hot reloading
+
 
 # Persistent volume for PostgreSQL data
 volumes:
