@@ -69,3 +69,44 @@ class MagicLinkToken(models.Model):
     def is_expired(self):
         return timezone.now() > self.expires_at
 
+class Event(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # FIXED (business → BusinessProfile)
+    business = models.ForeignKey(
+        BusinessProfile,
+        on_delete=models.CASCADE,
+        related_name="events"
+    )
+
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    start_time = models.DateTimeField(default=timezone.now)
+    end_time = models.DateTimeField(null=True, blank=True)
+
+    qr_code = models.TextField(blank=True)  # base64 QR code
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def generate_qr(self):
+        from .utils import generate_qr_base64
+        url = f"{settings.FRONTEND_BASE_URL}/event/{self.id}"
+        self.qr_code = generate_qr_base64(url)
+        self.save()
+
+    def __str__(self):
+        return f"{self.name} ({self.business.business_name})"
+
+
+class Post(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="posts")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.SET_NULL, null=True, blank=True)
+    image = models.ImageField(upload_to="posts/", null=True, blank=True)
+    text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Post by {self.user or 'Anonymous'} in {self.event.name}"
