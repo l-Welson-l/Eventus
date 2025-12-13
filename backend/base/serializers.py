@@ -33,9 +33,14 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
+    address = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
     class Meta:
         model = User
-        fields = ["email", "username", "user_type", "password1", "password2"]
+        fields = ["email", "username", "user_type", "password1", "password2", "address",]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
@@ -46,7 +51,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Password must be at least 8 characters!"
             )
+            # ✅ business-specific validation
+        if attrs.get("user_type") == "business":
+            if not attrs.get("address"):
+                raise serializers.ValidationError({
+                    "address": "Address is required for business accounts."
+                })
+
         return attrs
+
     def validate_email(self, value):
         if not validate_email(value):
             raise serializers.ValidationError("Invalid Email")
@@ -56,15 +69,24 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        # ✅ REMOVE fields not belonging to User
+        address = validated_data.pop("address", "")
         password = validated_data.pop("password1")
         validated_data.pop("password2")
+
+        # ✅ Create user ONLY with User fields
         user = User.objects.create_user(
             password=password,
             **validated_data
         )
 
+        # ✅ Create correct profile
         if user.user_type == "business":
-            BusinessProfile.objects.create(user=user, business_name=user.username)
+            BusinessProfile.objects.create(
+                user=user,
+                business_name=user.username,
+                address=address
+            )
         else:
             CustomerProfile.objects.create(user=user)
 

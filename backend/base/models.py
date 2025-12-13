@@ -44,7 +44,7 @@ class BusinessProfile(models.Model):
     cover_photo = models.ImageField(upload_to='cover_photos/', null=True, blank=True)
 
     def __str__(self):
-        return self.username
+        return self.business_name
 
 
 class CustomerProfile(models.Model):

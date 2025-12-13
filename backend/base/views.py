@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from django.utils import timezone
