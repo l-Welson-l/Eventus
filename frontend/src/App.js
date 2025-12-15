@@ -5,6 +5,9 @@ import RegisterCustomer from "./pages/RegisterCustomer";
 import RegisterBusiness from "./pages/RegisterBusiness";
 import Login from "./pages/LoginPage";
 
+import AuthDebugPage from "./pages/AuthDebugPage";
+import MagicLogin from "./pages/MagicLogin";
+
 function App() {
   return (
     <Routes>
@@ -12,6 +15,10 @@ function App() {
       <Route path="/register/customer" element={<RegisterCustomer />} />
       <Route path="/register/business" element={<RegisterBusiness />} />
       <Route path="/login" element={<Login />} />
+
+      <Route path="/auth-debug" element={<AuthDebugPage />} />
+      <Route path="/magic-login" element={<MagicLogin />} />
+
     </Routes>
   );
 }

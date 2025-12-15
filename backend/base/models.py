@@ -58,10 +58,17 @@ class AnonymousSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_active = models.DateTimeField(auto_now=True)
     email = models.EmailField(null=True, blank=True)
+    display_name = models.CharField(max_length=50, default="anonymous")
 
 class MagicLinkToken(models.Model):
     token = models.CharField(max_length=256, unique=True)  # we store a signed/jwt or random uuid
     email = models.EmailField()
+    anonymous_session = models.ForeignKey(
+        AnonymousSession,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     used = models.BooleanField(default=False)
     expires_at = models.DateTimeField()
