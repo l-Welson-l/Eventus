@@ -15,6 +15,7 @@ from django.http import HttpResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
 from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post
+from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from django.utils import timezone
@@ -152,6 +153,10 @@ def request_magic_link(request):
     if not email:
         return Response({"detail": "Email required"}, status=400)
 
+    # 🚫 Prevent magic link / anon session for existing users
+    if User.objects.filter(email=email).exists():
+        return Response({"detail": "An account with this email already exists."}, status=400)
+
     anon_session = None
     anon_id = request.data.get("anonymous_session_id")
 
@@ -201,40 +206,6 @@ def request_magic_link(request):
     })
 
 
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def verify_magic_link(request):
-    token = request.data.get("token")
-
-    m = get_object_or_404(MagicLinkToken, token=token)
-
-    if m.used or m.is_expired():
-        return Response({"detail": "Invalid or expired"}, status=400)
-
-    user, _ = User.objects.get_or_create(
-        email=m.email,
-        defaults={"username": m.email.split("@")[0]}
-    )
-
-    # 🔁 Merge anonymous activity
-    if m.anonymous_session:
-        Post.objects.filter(
-            anonymous_session=m.anonymous_session
-        ).update(
-            user=user,
-            anonymous_session=None
-        )
-
-    m.used = True
-    m.save()
-
-    refresh = RefreshToken.for_user(user)
-
-    return Response({
-        "access": str(refresh.access_token),
-        "refresh": str(refresh),
-        "user": UserSerializer(user).data
-    })
 
 
 class CreatePostView(APIView):
@@ -268,6 +239,66 @@ class CreatePostView(APIView):
             {"id": post.id, "detail": "Post created"},
             status=201
         )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def complete_magic_signup(request):
+    """
+    User clicks magic link → sets password + optional username
+    """
+    token = request.data.get("token")
+    password = request.data.get("password")
+    username = request.data.get("username")  # optional
+
+    if not token or not password:
+        return Response({"detail": "Token and password required"}, status=400)
+
+    # 1️⃣ Get magic token
+    m = get_object_or_404(MagicLinkToken, token=token)
+    if m.used or m.is_expired():
+        return Response({"detail": "Token invalid or expired"}, status=400)
+
+    # 2️⃣ Create or update user
+    user, created = User.objects.get_or_create(
+        email=m.email,
+        defaults={
+            "username": username or m.email.split("@")[0],
+            "user_type": "customer",
+            "password": make_password(password)
+        }
+    )
+
+    if not created:
+        # Update password and username if needed
+        user.password = make_password(password)
+        if username:
+            user.username = username
+        user.user_type = "customer"
+        user.save()
+
+    # 3️⃣ Merge anonymous data
+    if m.anonymous_session:
+        Post.objects.filter(anonymous_session=m.anonymous_session).update(
+            user=user,
+            anonymous_session=None
+        )
+
+    # 4️⃣ Mark token used
+    m.used = True
+    m.save()
+
+    # 5️⃣ Generate JWT
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+
+    return Response({
+        "access": access_token,
+        "refresh": str(refresh),
+        "user": UserSerializer(user).data
+    })
+
+
 
 
 @api_view(["POST"])

@@ -19,22 +19,22 @@ export default function AuthDebugPage() {
 
   const requestMagicLink = async () => {
     try {
-      const res = await API.post("/auth/magic-link/", {
+        const res = await API.post("/auth/magic-link/", {
         email,
         anonymous_session_id: anonSession,
-      });
+        });
 
-      localStorage.setItem(
-        "anon_session",
-        res.data.anonymous_session_id
-      );
-
-      setAnonSession(res.data.anonymous_session_id);
-      setMessage("Magic link sent. Check your email.");
+        localStorage.setItem("anon_session", res.data.anonymous_session_id);
+        setAnonSession(res.data.anonymous_session_id);
+        setMessage("Magic link sent. Check your email.");
     } catch (err) {
-      setMessage("Error sending magic link");
+        if (err.response?.status === 400) {
+        setMessage(err.response.data.detail); // show "account already exists"
+        } else {
+        setMessage("Error sending magic link");
+        }
     }
-  };
+    };
 
   const logout = () => {
     localStorage.removeItem("access");

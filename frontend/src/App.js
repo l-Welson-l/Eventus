@@ -19,6 +19,7 @@ function App() {
       <Route path="/auth-debug" element={<AuthDebugPage />} />
       <Route path="/magic-login" element={<MagicLogin />} />
 
+
     </Routes>
   );
 }
