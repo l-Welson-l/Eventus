@@ -7,4 +7,9 @@ urlpatterns = [
     path('login/', UserLoginView.as_view(), name="login-user"),
     path('logout/', UserLogoutView.as_view(), name="logout-user"),
     path('token/refresh/', TokenRefreshView.as_view(), name="token-refresh"),
+
+    path("auth/magic-link/", request_magic_link),
+    path("auth/magic-complete/", complete_magic_signup),
+
+    path("posts/", CreatePostView.as_view(), name="create-post"),
 ]
