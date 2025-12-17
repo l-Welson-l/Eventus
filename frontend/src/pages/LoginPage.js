@@ -22,7 +22,7 @@ export default function Login() {
       const res = await API.post("login/", form);
       localStorage.setItem("access", res.data.tokens.access);
       localStorage.setItem("refresh", res.data.tokens.refresh);
-      setMessage("Logged in sucessfully.");
+      navigate("/dashboard");
     } catch (err) {
         if (err.response?.status === 403) {
             setMessage("Please verify your email first.");
@@ -30,6 +30,7 @@ export default function Login() {
             setMessage("Invalid credentials or server error.");
         }
     }
+
   };
 
   return (
@@ -51,6 +52,7 @@ export default function Login() {
         />
         <button type="submit">Login</button>
       </form>
+      
 
       <hr />
 
