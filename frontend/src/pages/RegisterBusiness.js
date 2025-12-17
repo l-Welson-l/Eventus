@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Input from "../components/Input";
 import { registerUser } from "../api/auth";
 
 export default function RegisterBusiness() {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
     email: "",
     business_name: "",
@@ -10,23 +13,29 @@ export default function RegisterBusiness() {
     password1: "",
     password2: "",
     user_type: "business",
-    username: "", // auto-fill
+    username: "",
   });
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
-    // auto-set username to business_name
-    form.username = form.business_name;
+    const payload = {
+      ...form,
+      username: form.business_name, // auto-fill username
+    };
 
     try {
-      await registerUser(form);
-      setSuccess("Business account created!");
+      const res = await registerUser(payload);
+
+      // 🔐 SAVE TOKENS
+      localStorage.setItem("access", res.data.tokens.access);
+      localStorage.setItem("refresh", res.data.tokens.refresh);
+
+      // 🚀 GO TO DASHBOARD
+      navigate("/dashboard");
     } catch (err) {
       setError(JSON.stringify(err.response?.data || "Error"));
     }
@@ -38,12 +47,13 @@ export default function RegisterBusiness() {
         <h2>Business Registration</h2>
 
         {error && <p style={{ color: "red" }}>{error}</p>}
-        {success && <p style={{ color: "green" }}>{success}</p>}
 
         <Input
           label="Business Name"
           value={form.business_name}
-          onChange={(e) => setForm({ ...form, business_name: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, business_name: e.target.value })
+          }
         />
 
         <Input

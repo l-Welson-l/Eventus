@@ -12,4 +12,5 @@ urlpatterns = [
     path("auth/magic-complete/", complete_magic_signup),
 
     path("posts/", CreatePostView.as_view(), name="create-post"),
+    path("me/", current_user),
 ]

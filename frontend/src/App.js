@@ -4,7 +4,7 @@ import RegisterSelect from "./pages/RegisterSelect";
 import RegisterCustomer from "./pages/RegisterCustomer";
 import RegisterBusiness from "./pages/RegisterBusiness";
 import Login from "./pages/LoginPage";
-
+import Dashboard from "./pages/Dashboard";
 import AuthDebugPage from "./pages/AuthDebugPage";
 import MagicLogin from "./pages/MagicLogin";
 
@@ -18,6 +18,7 @@ function App() {
 
       <Route path="/auth-debug" element={<AuthDebugPage />} />
       <Route path="/magic-login" element={<MagicLogin />} />
+      <Route path="/dashboard" element={<Dashboard />} />
 
 
     </Routes>
