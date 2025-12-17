@@ -157,6 +157,9 @@ def request_magic_link(request):
     if User.objects.filter(email=email).exists():
         return Response({"detail": "An account with this email already exists."}, status=400)
 
+    if MagicLinkToken.objects.filter(email=email).exists():
+        return Response({"detail": "A magic link has already been sent to this email, please login using the link in the email"}, status=400)
+
     anon_session = None
     anon_id = request.data.get("anonymous_session_id")
 
