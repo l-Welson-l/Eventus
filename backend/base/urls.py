@@ -13,4 +13,14 @@ urlpatterns = [
 
     path("posts/", CreatePostView.as_view(), name="create-post"),
     path("me/", current_user),
+
+
+    path("events/create/", CreateEventView.as_view(), name="create-event"),
+    path("events/<uuid:event_id>/join/", join_event, name="join-event"),
+    path("events/<uuid:event_id>/", event_detail, name="event-detail"),
+    path(
+        "events/<uuid:event_id>/toggle-feature/",
+        toggle_event_feature,
+        name="toggle-event-feature",
+    ),
 ]

@@ -105,6 +105,40 @@ class Event(models.Model):
     def __str__(self):
         return f"{self.name} ({self.business.business_name})"
 
+class EventFeature(models.Model):
+    FEATURE_CHOICES = (
+        ("menu", "Menu"),
+        ("moments", "Moments"),
+        ("community", "Community"),
+        ("users", "Users"),
+        ("leaderboard", "Leaderboard"),
+    )
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="features")
+    key = models.CharField(max_length=50, choices=FEATURE_CHOICES)
+
+    class Meta:
+        unique_together = ("event", "key")
+
+    def __str__(self):
+        return f"{self.event.name} → {self.key}"
+
+class EventMembership(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE)
+    anonymous_session = models.ForeignKey(
+        AnonymousSession, null=True, blank=True, on_delete=models.CASCADE
+    )
+
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (
+            ("event", "user"),
+            ("event", "anonymous_session"),
+        )
+
+
 
 class Post(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

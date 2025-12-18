@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event
 from .utils import validate_email
 
 
@@ -27,6 +27,25 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         model = CustomerProfile
         fields = ["user", "cover_photo", "joined_at"]
         read_only_fields = ["joined_at"]
+
+class EventFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventFeature
+        fields = ["key"]
+
+class EventSerializer(serializers.ModelSerializer):
+    features = EventFeatureSerializer(many=True)
+
+    class Meta:
+        model = Event
+        fields = [
+            "id",
+            "name",
+            "description",
+            "start_time",
+            "end_time",
+            "features",
+        ]
 
 
 
