@@ -126,3 +126,15 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Account deactivated.")
         return {"user": user}
     
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = [
+            "id",
+            "name",
+            "description",
+            "start_time",
+            "end_time",
+            "qr_code",
+        ]

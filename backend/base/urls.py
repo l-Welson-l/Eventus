@@ -23,4 +23,6 @@ urlpatterns = [
         toggle_event_feature,
         name="toggle-event-feature",
     ),
+    path("my-events/", my_events),
+
 ]

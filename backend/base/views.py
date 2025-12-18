@@ -329,6 +329,7 @@ class UserLogoutView(GenericAPIView):
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         
+        
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def current_user(request):
@@ -443,3 +444,14 @@ def toggle_event_feature(request, event_id):
         enabled = True
 
     return Response({"key": key, "enabled": enabled})
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_events(request):
+    if request.user.user_type != "business":
+        return Response([], status=200)
+
+    business = request.user.business_profile
+    events = Event.objects.filter(business=business)
+
+    serializer = EventSerializer(events, many=True)
+    return Response(serializer.data)
