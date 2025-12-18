@@ -8,6 +8,10 @@ import Dashboard from "./pages/Dashboard";
 import AuthDebugPage from "./pages/AuthDebugPage";
 import MagicLogin from "./pages/MagicLogin";
 
+import EventJoin from "./pages/EventJoin";
+import EventPage from "./pages/EventPage";
+import CreateEvent from "./pages/CreateEvent";
+
 function App() {
   return (
     <Routes>
@@ -19,6 +23,11 @@ function App() {
       <Route path="/auth-debug" element={<AuthDebugPage />} />
       <Route path="/magic-login" element={<MagicLogin />} />
       <Route path="/dashboard" element={<Dashboard />} />
+
+
+      <Route path="/event/join/:eventId" element={<EventJoin />} />
+      <Route path="/event/:eventId" element={<EventPage />} />
+      <Route path="/events/create" element={<CreateEvent />} />
 
 
     </Routes>

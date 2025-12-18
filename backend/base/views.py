@@ -14,10 +14,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer
 from django.utils import timezone
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -336,6 +336,114 @@ def current_user(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def join_event(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+
+    user = request.user if request.user.is_authenticated else None
+    anon_id = request.data.get("anonymous_session_id")
+
+    if not user and not anon_id:
+        return Response(
+            {"detail": "Anonymous session required"},
+            status=400
+        )
+
+    anonymous_session = None
+    if anon_id:
+        anonymous_session = get_object_or_404(
+            AnonymousSession,
+            session_id=anon_id
+        )
+
+    membership, created = EventMembership.objects.get_or_create(
+        event=event,
+        user=user,
+        anonymous_session=anonymous_session
+    )
+
+    return Response({
+        "joined": True,
+        "event_id": str(event.id)
+    })
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def event_detail(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+
+    user = request.user if request.user.is_authenticated else None
+    anon_id = request.query_params.get("anonymous_session_id")
+
+    is_member = False
+
+    if user:
+        is_member = EventMembership.objects.filter(
+            event=event, user=user
+        ).exists()
+    elif anon_id:
+        is_member = EventMembership.objects.filter(
+            event=event,
+            anonymous_session__session_id=anon_id
+        ).exists()
+
+    if not is_member:
+        return Response({"detail": "Access denied"}, status=403)
+
+    serializer = EventSerializer(event)
+    return Response(serializer.data)
+
+
+class CreateEventView(APIView):
+    permission_classes = [IsAuthenticated]
+
+
+
+    def post(self, request):
+        business = request.user.business_profile
+
+        if request.user.user_type != "business":
+            return Response(
+                {"detail": "Only business accounts can create events"},
+                status=403
+            )
+
+        event = Event.objects.create(
+            business=business,
+            name=request.data["name"],
+            description=request.data.get("description", "")
+        )
+
+        selected_features = request.data.get("features", [])
+
+        for key in selected_features:
+            EventFeature.objects.create(event=event, key=key)
+
+        event.generate_qr()
+
+        return Response({
+            "id": event.id,
+            "qr_code": event.qr_code
+        }, status=201)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def toggle_event_feature(request, event_id):
+    event = get_object_or_404(Event, id=event_id, business=request.user.business_profile)
+    key = request.data.get("key")
+
+    feature = EventFeature.objects.filter(event=event, key=key).first()
+
+    if feature:
+        feature.delete()
+        enabled = False
+    else:
+        EventFeature.objects.create(event=event, key=key)
+        enabled = True
+
+    return Response({"key": key, "enabled": enabled})
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_events(request):
