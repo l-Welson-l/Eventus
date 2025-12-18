@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/auth";
+import { Link } from "react-router-dom";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -55,6 +56,9 @@ export default function Login() {
       
 
       <hr />
+      <Link to="/register">
+          Register
+        </Link>
 
       <p>{message}</p>
     </div>

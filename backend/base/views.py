@@ -14,10 +14,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer
 from django.utils import timezone
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -329,8 +329,21 @@ class UserLogoutView(GenericAPIView):
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         
+        
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def current_user(request):
     serializer = UserSerializer(request.user)
+    return Response(serializer.data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_events(request):
+    if request.user.user_type != "business":
+        return Response([], status=200)
+
+    business = request.user.business_profile
+    events = Event.objects.filter(business=business)
+
+    serializer = EventSerializer(events, many=True)
     return Response(serializer.data)

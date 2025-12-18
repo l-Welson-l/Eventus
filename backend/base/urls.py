@@ -13,4 +13,6 @@ urlpatterns = [
 
     path("posts/", CreatePostView.as_view(), name="create-post"),
     path("me/", current_user),
+    path("my-events/", my_events),
+
 ]

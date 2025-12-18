@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, Event
 from .utils import validate_email
 
 
@@ -107,3 +107,15 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Account deactivated.")
         return {"user": user}
     
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = [
+            "id",
+            "name",
+            "description",
+            "start_time",
+            "end_time",
+            "qr_code",
+        ]

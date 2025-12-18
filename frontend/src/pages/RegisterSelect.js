@@ -14,6 +14,11 @@ export default function RegisterSelect() {
         <Link to="/register/business" style={styles.businessBtn}>
           Register as Business 
         </Link>
+
+        <Link to="/login">
+                  login
+                </Link>
+        
       </div>
     </div>
   );
