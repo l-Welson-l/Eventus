@@ -34,6 +34,7 @@ class EventFeatureSerializer(serializers.ModelSerializer):
         fields = ["key"]
 
 
+
 class RegisterSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
@@ -114,7 +115,6 @@ class LoginSerializer(serializers.Serializer):
 
 class EventSerializer(serializers.ModelSerializer):
     features = EventFeatureSerializer(many=True)
-
     class Meta:
         model = Event
         fields = [

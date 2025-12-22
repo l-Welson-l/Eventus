@@ -64,7 +64,7 @@ export default function Dashboard() {
                 <div
                   key={e.id}
                   style={styles.eventCard}
-                  onClick={() => (window.location.href = `/events/${e.id}`)}
+                  onClick={() => (window.location.href = `/event/${e.id}`)}
                 >
                   <div>
                     <h4>{e.name}</h4>
