@@ -23,6 +23,7 @@ urlpatterns = [
         toggle_event_feature,
         name="toggle-event-feature",
     ),
+    path("events/<uuid:event_id>/update/", update_event),
     path("my-events/", my_events),
 
 ]
