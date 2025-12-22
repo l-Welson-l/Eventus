@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../api/auth";
+import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   const [qrPreview, setQrPreview] = useState(null);
@@ -83,10 +84,9 @@ export default function Dashboard() {
                   )}
                 </div>
               ))}
-
-              <button style={styles.createBtn}>
-                ➕ Create new event
-              </button>
+              <Link to="/events/create">
+                <button style={styles.createBtn}>➕ Create new event</button>
+              </Link>
             </>
           )}
         </div>

@@ -10,6 +10,7 @@ from .models import (
     Post,
     AnonymousSession,
     MagicLinkToken,
+    EventFeature,  
 )
 
 @admin.register(User)
@@ -48,6 +49,11 @@ class CustomerProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "joined_at")
     search_fields = ("user__email",)
 
+class EventFeatureInline(admin.TabularInline):
+    model = EventFeature
+    extra = 1
+
+
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
@@ -65,6 +71,8 @@ class EventAdmin(admin.ModelAdmin):
 
     readonly_fields = ("qr_preview", "created_at", "updated_at")
 
+    inlines = [EventFeatureInline]  # 👈 ADD THIS
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if not obj.qr_code:
@@ -79,6 +87,7 @@ class EventAdmin(admin.ModelAdmin):
         return "No QR generated"
 
     qr_preview.short_description = "QR Code"
+
 
 
 @admin.register(Post)
