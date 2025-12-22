@@ -33,20 +33,6 @@ class EventFeatureSerializer(serializers.ModelSerializer):
         model = EventFeature
         fields = ["key"]
 
-class EventSerializer(serializers.ModelSerializer):
-    features = EventFeatureSerializer(many=True)
-
-    class Meta:
-        model = Event
-        fields = [
-            "id",
-            "name",
-            "description",
-            "start_time",
-            "end_time",
-            "features",
-        ]
-
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -128,6 +114,7 @@ class LoginSerializer(serializers.Serializer):
     
 
 class EventSerializer(serializers.ModelSerializer):
+    features = EventFeatureSerializer(many=True)
     class Meta:
         model = Event
         fields = [
@@ -137,4 +124,5 @@ class EventSerializer(serializers.ModelSerializer):
             "start_time",
             "end_time",
             "qr_code",
+            "features",
         ]
