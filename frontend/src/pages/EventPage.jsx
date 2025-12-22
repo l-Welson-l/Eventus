@@ -1,32 +1,78 @@
-// import { useParams } from "react-router-dom";
-// import { useEffect, useState } from "react";
-// import { getEvent } from "../api/events";
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getEvent } from "../api/events";
 
-// export default function EventPage() {
-//   const { eventId } = useParams();
-//   const [event, setEvent] = useState(null);
+import Menu from "../components/event/Menu";
+import Moments from "../components/event/Moments";
+import Community from "../components/event/Community";
+import Users from "../components/event/Users";
+import Leaderboard from "../components/event/Leaderboard";
 
-//   useEffect(() => {
-//     const anonId = localStorage.getItem("anonymous_session_id");
+import "./EventPage.css";
 
-//     getEvent(eventId, anonId)
-//       .then((res) => setEvent(res.data))
-//       .catch(() => alert("Access denied"));
-//   }, [eventId]);
+export default function EventPage() {
+  const { eventId } = useParams();
+  const [event, setEvent] = useState(null);
+  const [activeFeature, setActiveFeature] = useState(null);
 
-//   if (!event) return <p>Loading...</p>;
+  useEffect(() => {
+    const anonId = localStorage.getItem("anonymous_session_id");
 
-//   const features = event.features.map((f) => f.key);
+    getEvent(eventId, anonId)
+      .then((res) => setEvent(res.data))
+      .catch(() => alert("Access denied"));
+  }, [eventId]);
 
-//   return (
-//     <div>
-//       <h1>{event.name}</h1>
+  // Set default feature when event loads
+  useEffect(() => {
+    if (event?.features?.length) {
+      setActiveFeature(event.features[0].key);
+    }
+  }, [event]);
 
-//       {features.includes("menu") && <Menu />}
-//       {features.includes("moments") && <Moments />}
-//       {features.includes("community") && <Community />}
-//       {features.includes("users") && <Users />}
-//       {features.includes("leaderboard") && <Leaderboard />}
-//     </div>
-//   );
-// }
+  if (!event) return <p>Loading...</p>;
+
+  const features = event.features?.map((f) => f.key) || [];
+
+  const renderFeature = () => {
+    switch (activeFeature) {
+      case "menu":
+        return <Menu />;
+      case "moments":
+        return <Moments />;
+      case "community":
+        return <Community />;
+      case "users":
+        return <Users />;
+      case "leaderboard":
+        return <Leaderboard />;
+      default:
+        return <p>Select a feature</p>;
+    }
+  };
+
+  return (
+    <div className="event-page">
+      {/* MAIN CONTENT */}
+      <div className="event-content">
+        <h2 className="event-title">{event.name}</h2>
+        {renderFeature()}
+      </div>
+
+      {/* BOTTOM FEATURE BAR */}
+      <div className="feature-bar">
+        {features.map((key) => (
+          <button
+            key={key}
+            className={`feature-btn ${
+              activeFeature === key ? "active" : ""
+            }`}
+            onClick={() => setActiveFeature(key)}
+          >
+            {key}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

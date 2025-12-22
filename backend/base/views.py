@@ -376,6 +376,12 @@ def event_detail(request, event_id):
     user = request.user if request.user.is_authenticated else None
     anon_id = request.query_params.get("anonymous_session_id")
 
+     # ✅ Business owner always has access
+    if user and user.user_type == "business":
+        if event.business.user == user:
+            serializer = EventSerializer(event)
+            return Response(serializer.data)
+
     is_member = False
 
     if user:
@@ -401,13 +407,14 @@ class CreateEventView(APIView):
 
 
     def post(self, request):
-        business = request.user.business_profile
-
         if request.user.user_type != "business":
             return Response(
                 {"detail": "Only business accounts can create events"},
                 status=403
             )
+        
+        business = request.user.business_profile
+
 
         event = Event.objects.create(
             business=business,

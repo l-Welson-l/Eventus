@@ -1,0 +1,40 @@
+.event-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f9f9f9;
+}
+
+.event-title {
+  margin-bottom: 12px;
+}
+
+.event-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.feature-bar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid #ddd;
+  padding: 10px 0;
+  background: #ffffff;
+}
+
+.feature-btn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+}
+
+.feature-btn.active {
+  font-weight: bold;
+  color: #000;
+  border-bottom: 2px solid #000;
+}
