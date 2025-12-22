@@ -71,17 +71,29 @@ export default function Dashboard() {
                     <p>{e.description || "No description"}</p>
                   </div>
 
-                  {e.qr_code && (
-                    <img
-                      src={e.qr_code}
-                      alt="QR"
-                      style={styles.qrSmall}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        setQrPreview(e.qr_code);
-                      }}
-                    />
-                  )}
+                   <div style={styles.eventActions}>
+                      {e.qr_code && (
+                        <img
+                          src={e.qr_code}
+                          alt="QR"
+                          style={styles.qrSmall}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setQrPreview(e.qr_code);
+                          }}
+                        />
+                      )}
+
+                      <button
+                        style={styles.editBtn}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          window.location.href = `/events/${e.id}/edit`;
+                        }}
+                      >
+                        ✏️
+                      </button>
+                    </div>
                 </div>
               ))}
               <Link to="/events/create">
@@ -192,3 +204,4 @@ const styles = {
     borderRadius: 12,
   },
 };
+

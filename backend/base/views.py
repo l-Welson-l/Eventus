@@ -451,6 +451,36 @@ def toggle_event_feature(request, event_id):
         enabled = True
 
     return Response({"key": key, "enabled": enabled})
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_event(request, event_id):
+    """
+    Edit event basic details (name, description)
+    Only the business owner can update
+    """
+    if request.user.user_type != "business":
+        return Response(
+            {"detail": "Only business accounts can edit events"},
+            status=403
+        )
+
+    event = get_object_or_404(
+        Event,
+        id=event_id,
+        business=request.user.business_profile
+    )
+
+    # Update fields safely
+    event.name = request.data.get("name", event.name)
+    event.description = request.data.get("description", event.description)
+
+    event.save()
+
+    serializer = EventSerializer(event)
+    return Response(serializer.data, status=200)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_events(request):
