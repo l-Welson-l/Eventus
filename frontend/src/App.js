@@ -26,7 +26,6 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />} />
 
 
-      <Route path="/event/join/:eventId" element={<EventJoin />} />
       <Route path="/event/:eventId" element={<EventPage />} />
       <Route path="/events/create" element={<CreateEvent />} />
       <Route path="/events/:id/edit" element={<EditEvent />} />

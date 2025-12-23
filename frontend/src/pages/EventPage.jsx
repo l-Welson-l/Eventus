@@ -41,7 +41,7 @@ export default function EventPage() {
       case "moments":
         return <Moments />;
       case "community":
-        return <Community />;
+        return <Community eventId={eventId} />;
       case "users":
         return <Users />;
       case "leaderboard":

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post
 from .utils import validate_email
 
 
@@ -126,3 +126,21 @@ class EventSerializer(serializers.ModelSerializer):
             "qr_code",
             "features",
         ]
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = "__all__"
+        read_only_fields = ["post", "user", "anonymous_session"]
+
+
+class PostSerializer(serializers.ModelSerializer):
+    comments = CommentSerializer(many=True, read_only=True)
+    image = serializers.ImageField(required=False)
+
+    class Meta:
+        model = Post
+        fields = "__all__"
+        read_only_fields = ["event", "user", "anonymous_session"]
+

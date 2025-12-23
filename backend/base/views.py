@@ -1,6 +1,7 @@
 from rest_framework import generics, status
 import uuid, secrets
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from datetime import timedelta
@@ -14,10 +15,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer
 from django.utils import timezone
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -210,38 +211,35 @@ def request_magic_link(request):
 
 
 
+class EventJoinMixin:
+    """
+    Ensures user OR anonymous session
+    is a member of the event
+    """
 
-class CreatePostView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        user = request.user if request.user.is_authenticated else None
-        anon_id = request.data.get("anonymous_session_id")
-
-        if not user and not anon_id:
-            return Response(
-                {"detail": "Authentication or anonymous session required"},
-                status=400
+    def ensure_membership(self, request, event):
+        if request.user.is_authenticated:
+            membership, _ = EventMembership.objects.get_or_create(
+                event=event,
+                user=request.user
             )
+            return {"user": request.user}
 
-        anonymous_session = None
+        anon_id = request.data.get("anonymous_session_id")
         if anon_id:
-            anonymous_session = get_object_or_404(
+            anon = get_object_or_404(
                 AnonymousSession,
                 session_id=anon_id
             )
+            membership, _ = EventMembership.objects.get_or_create(
+                event=event,
+                anonymous_session=anon
+            )
+            return {"anonymous_session": anon}
 
-        post = Post.objects.create(
-            event_id=request.data["event_id"],
-            text=request.data.get("text", ""),
-            user=user,
-            anonymous_session=anonymous_session
-        )
+        raise PermissionDenied("Login or email required")
 
-        return Response(
-            {"id": post.id, "detail": "Post created"},
-            status=201
-        )
+
 
 
 @api_view(["POST"])
@@ -373,32 +371,10 @@ def join_event(request, event_id):
 def event_detail(request, event_id):
     event = get_object_or_404(Event, id=event_id)
 
-    user = request.user if request.user.is_authenticated else None
-    anon_id = request.query_params.get("anonymous_session_id")
-
-     # ✅ Business owner always has access
-    if user and user.user_type == "business":
-        if event.business.user == user:
-            serializer = EventSerializer(event)
-            return Response(serializer.data)
-
-    is_member = False
-
-    if user:
-        is_member = EventMembership.objects.filter(
-            event=event, user=user
-        ).exists()
-    elif anon_id:
-        is_member = EventMembership.objects.filter(
-            event=event,
-            anonymous_session__session_id=anon_id
-        ).exists()
-
-    if not is_member:
-        return Response({"detail": "Access denied"}, status=403)
-
     serializer = EventSerializer(event)
     return Response(serializer.data)
+
+
 
 
 class CreateEventView(APIView):
@@ -492,3 +468,37 @@ def my_events(request):
 
     serializer = EventSerializer(events, many=True)
     return Response(serializer.data)
+
+
+class EventPostListCreateView(EventJoinMixin, generics.ListCreateAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PostSerializer
+
+    def get_queryset(self):
+        return Post.objects.filter(
+            event_id=self.kwargs["event_id"]
+        ).select_related("user", "anonymous_session") \
+         .prefetch_related("comments")
+
+    def perform_create(self, serializer):
+        event = get_object_or_404(Event, id=self.kwargs["event_id"])
+        author = self.ensure_membership(self.request, event)
+
+        serializer.save(
+            event=event,
+            **author
+        )
+
+
+class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = CommentSerializer
+
+    def perform_create(self, serializer):
+        post = get_object_or_404(Post, id=self.kwargs["post_id"])
+        author = self.ensure_membership(self.request, post.event)
+
+        serializer.save(
+            post=post,
+            **author
+        )

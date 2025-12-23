@@ -11,7 +11,6 @@ urlpatterns = [
     path("auth/magic-link/", request_magic_link),
     path("auth/magic-complete/", complete_magic_signup),
 
-    path("posts/", CreatePostView.as_view(), name="create-post"),
     path("me/", current_user),
 
 
@@ -25,5 +24,17 @@ urlpatterns = [
     ),
     path("events/<uuid:event_id>/update/", update_event),
     path("my-events/", my_events),
+
+
+    path(
+        "events/<uuid:event_id>/posts/",
+        EventPostListCreateView.as_view(),
+        name="event-posts"
+    ),
+    path(
+        "posts/<uuid:post_id>/comments/",
+        CommentCreateView.as_view(),
+        name="post-comments"
+    ),
 
 ]
