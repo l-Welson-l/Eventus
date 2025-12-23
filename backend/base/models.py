@@ -156,3 +156,14 @@ class Post(models.Model):
 
     def __str__(self):
         return f"Post by {self.user or 'Anonymous'} in {self.event.name}"
+
+class Comment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(Post, related_name="comments", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    anonymous_session = models.ForeignKey(AnonymousSession, null=True, blank=True, on_delete=models.SET_NULL)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment on {self.post.id}"

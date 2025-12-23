@@ -175,3 +175,7 @@ STATIC_URL = 'static/'
 
 # Frontend
 FRONTEND_BASE_URL = "http://localhost:3000"
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
