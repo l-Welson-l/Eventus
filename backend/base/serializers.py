@@ -129,18 +129,34 @@ class EventSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
         fields = "__all__"
         read_only_fields = ["post", "user", "anonymous_session"]
 
+    def get_author_name(self, obj):
+        if obj.user:
+            return obj.user.username.lower()
+        if obj.anonymous_session:
+            return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
+        return "anonymous"
+
 
 class PostSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True, read_only=True)
     image = serializers.ImageField(required=False)
+    author_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = "__all__"
         read_only_fields = ["event", "user", "anonymous_session"]
 
+    def get_author_name(self, obj):
+        if obj.user:
+            return obj.user.username.lower()
+        if obj.anonymous_session:
+            return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
+        return "anonymous"

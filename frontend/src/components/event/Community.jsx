@@ -16,9 +16,25 @@ export default function Community({ eventId }) {
   const anonId = localStorage.getItem("anonymous_session_id");
 
   // Load posts
-  useEffect(() => {
-    getEventPosts(eventId).then((res) => setPosts(res.data));
-  }, [eventId]);
+      useEffect(() => {
+        let mounted = true;
+
+        const fetchPosts = async () => {
+            const res = await getEventPosts(eventId);
+            if (mounted) {
+            setPosts(res.data);
+            }
+        };
+
+        fetchPosts(); // initial load
+
+        const interval = setInterval(fetchPosts, 3000); // poll every 3 seconds
+
+        return () => {
+            mounted = false;
+            clearInterval(interval);
+        };
+    }, [eventId]);
 
   const submitPost = async () => {
     if (!text && !image) return;
@@ -31,7 +47,7 @@ export default function Community({ eventId }) {
     if (anonId) formData.append("anonymous_session_id", anonId);
 
     const res = await createPost(eventId, formData);
-    setPosts([res.data, ...posts]);
+    setPosts((prev) => [res.data, ...prev]);
 
     setText("");
     setImage(null);
@@ -90,28 +106,32 @@ function PostCard({ post, anonId }) {
 
   return (
     <div className="post-card">
-      <p>{post.text}</p>
 
-      {post.image && (
-        <img src={post.image} alt="" className="post-image" />
-      )}
+        <span className="author-name">{post.author_name}</span>
+        
+        <p>{post.text}</p>
 
-      {/* COMMENTS */}
-      <div className="comments">
-        {comments.map((c) => (
-          <p key={c.id} className="comment">
-            {c.text}
-          </p>
-        ))}
-      </div>
+        {post.image && (
+            <img src={post.image} alt="" className="post-image" />
+        )}
 
-      {/* ADD COMMENT */}
-      <input
-        placeholder="Write a comment..."
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-      />
-      <button onClick={submitComment}>Comment</button>
+        {/* COMMENTS */}
+        <div className="comments">
+            {comments.map((c) => (
+            <p key={c.id} className="comment">
+                <span className="author-name">{c.author_name}</span>
+                {c.text}
+            </p>
+            ))}
+        </div>
+
+        {/* ADD COMMENT */}
+        <input
+            placeholder="Write a comment..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+        />
+        <button onClick={submitComment}>Comment</button>
     </div>
   );
 }
