@@ -37,7 +37,7 @@ export default function EventPage() {
   const renderFeature = () => {
     switch (activeFeature) {
       case "menu":
-        return <Menu />;
+        return <Menu event={event} />;
       case "moments":
         return <Moments />;
       case "community":

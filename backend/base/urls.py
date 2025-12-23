@@ -2,6 +2,7 @@ from django.urls import path
 from .views import *
 from rest_framework_simplejwt.views import TokenRefreshView
 
+
 urlpatterns = [
     path('register/', UserRegisterView.as_view(), name="register-user"),
     path('login/', UserLoginView.as_view(), name="login-user"),
@@ -24,6 +25,8 @@ urlpatterns = [
     ),
     path("events/<uuid:event_id>/update/", update_event),
     path("my-events/", my_events),
+    path("media/event_menus/<str:filename>/view/", ServeMenuPDF.as_view())
+
 
 
     path(

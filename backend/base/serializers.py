@@ -115,6 +115,7 @@ class LoginSerializer(serializers.Serializer):
 
 class EventSerializer(serializers.ModelSerializer):
     features = EventFeatureSerializer(many=True)
+    menu_file_url = serializers.SerializerMethodField() 
     class Meta:
         model = Event
         fields = [
@@ -160,3 +161,16 @@ class PostSerializer(serializers.ModelSerializer):
         if obj.anonymous_session:
             return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
         return "anonymous"
+            "menu_file",   # ✅ added
+            "cover_image",
+            "menu_file_url", # ✅ optional
+            "features"
+        ]
+
+    def get_menu_file_url(self, obj):
+        if obj.menu_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.menu_file.url)
+            return obj.menu_file.url
+        return None

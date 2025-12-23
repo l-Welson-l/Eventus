@@ -92,7 +92,8 @@ class Event(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
 
     qr_code = models.TextField(blank=True)  # base64 QR code
-
+    menu_file = models.FileField(upload_to="event_menus/", null=True, blank=True)
+    cover_image = models.ImageField(upload_to="event_covers/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -101,6 +102,10 @@ class Event(models.Model):
         url = f"{settings.FRONTEND_BASE_URL}/event/{self.id}"
         self.qr_code = generate_qr_base64(url)
         self.save()
+    
+    @property
+    def has_menu_file(self):
+        return bool(self.menu_file)
 
     def __str__(self):
         return f"{self.name} ({self.business.business_name})"
