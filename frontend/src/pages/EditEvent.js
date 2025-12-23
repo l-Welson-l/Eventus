@@ -19,6 +19,8 @@ export default function EditEvent() {
 
   const [features, setFeatures] = useState({});
   const [originalFeatures, setOriginalFeatures] = useState({});
+  const [menuFile, setMenuFile] = useState(null);
+  const [currentMenu, setCurrentMenu] = useState(null);
 
   useEffect(() => {
     async function loadEvent() {
@@ -39,7 +41,17 @@ export default function EditEvent() {
 
         setFeatures(enabled);
         setOriginalFeatures(enabled);
-      } catch {
+
+        // ✅ Store Django media URL for menu file
+        if (res.data.menu_file) {
+          const url =
+            res.data.menu_file.startsWith("http")
+              ? res.data.menu_file
+              : `http://localhost:8000${res.data.menu_file}`;
+          setCurrentMenu(url);
+        }
+      } catch (err) {
+        console.error(err);
         alert("Failed to load event");
         navigate("/dashboard");
       } finally {
@@ -57,16 +69,28 @@ export default function EditEvent() {
     }));
   };
 
+  const handleMenuChange = (e) => {
+    if (e.target.files.length > 0) {
+      setMenuFile(e.target.files[0]);
+    }
+  };
+
   const saveChanges = async () => {
     try {
       setSaving(true);
 
-      // 1️⃣ Update name / description
-      await API.put(
-        `/events/${id}/update/`,
-        form,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // 1️⃣ Update name / description (+ menu file if uploaded)
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("description", form.description);
+      if (menuFile) formData.append("menu_file", menuFile);
+
+      await API.put(`/events/${id}/update/`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       // 2️⃣ Sync features (toggle only changed ones)
       for (const key of ALL_FEATURES) {
@@ -84,7 +108,8 @@ export default function EditEvent() {
 
       alert("Event updated successfully");
       navigate("/dashboard");
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert("Failed to save changes");
     } finally {
       setSaving(false);
@@ -110,16 +135,30 @@ export default function EditEvent() {
         <textarea
           style={styles.textarea}
           value={form.description}
-          onChange={(e) =>
-            setForm({ ...form, description: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
       </div>
+
+      {/* MENU UPLOAD */}
+      {features.menu && (
+        <div style={styles.card}>
+            <h3>Menu Upload</h3>
+            <input type="file" onChange={handleMenuChange} />
+            {currentMenu && (
+                <button
+                    style={styles.viewBtn}
+                    onClick={() => window.open(currentMenu, "_blank")}
+                >
+                    View Current Menu
+                </button>
+                )}
+            {menuFile && <p>Selected file: {menuFile.name}</p>}
+        </div>
+      )}
 
       {/* FEATURES */}
       <div style={styles.card}>
         <h3>Enabled Features</h3>
-
         {ALL_FEATURES.map((key) => (
           <label key={key} style={styles.featureRow}>
             <input
@@ -137,12 +176,7 @@ export default function EditEvent() {
         <button onClick={() => navigate(-1)} style={styles.cancel}>
           Cancel
         </button>
-
-        <button
-          onClick={saveChanges}
-          disabled={saving}
-          style={styles.save}
-        >
+        <button onClick={saveChanges} disabled={saving} style={styles.save}>
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
@@ -151,11 +185,7 @@ export default function EditEvent() {
 }
 
 const styles = {
-  page: {
-    maxWidth: 600,
-    margin: "40px auto",
-    fontFamily: "sans-serif",
-  },
+  page: { maxWidth: 600, margin: "40px auto", fontFamily: "sans-serif" },
   card: {
     background: "#fff",
     padding: 20,
@@ -163,26 +193,10 @@ const styles = {
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
     marginBottom: 20,
   },
-  input: {
-    width: "100%",
-    padding: 10,
-    marginBottom: 15,
-  },
-  textarea: {
-    width: "100%",
-    minHeight: 80,
-    padding: 10,
-  },
-  featureRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  actions: {
-    display: "flex",
-    justifyContent: "space-between",
-  },
+  input: { width: "100%", padding: 10, marginBottom: 15 },
+  textarea: { width: "100%", minHeight: 80, padding: 10 },
+  featureRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 },
+  actions: { display: "flex", justifyContent: "space-between" },
   cancel: {
     background: "#ccc",
     border: "none",
@@ -196,6 +210,15 @@ const styles = {
     border: "none",
     padding: "10px 16px",
     borderRadius: 8,
+    cursor: "pointer",
+  },
+  viewBtn: {
+    marginTop: 10,
+    padding: "8px 12px",
+    borderRadius: 6,
+    border: "none",
+    background: "#34a853",
+    color: "#fff",
     cursor: "pointer",
   },
 };

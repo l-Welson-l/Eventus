@@ -31,7 +31,9 @@ SECRET_KEY = 'django-insecure-#%0o)%u2km45nt)0$i5*c-m9tbn1z+(3&@53k1i6w73^5f_cl&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "*"
+]
 
 
 # Application definition
@@ -145,6 +147,11 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+X_FRAME_OPTIONS = "ALLOWALL"  # WARNING: allows embedding on any site
 
 
 # Internationalization

@@ -11,7 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
 from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership
@@ -19,6 +19,9 @@ from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer
 from django.utils import timezone
+from django.views import View
+import os
+
 
 MAGIC_LINK_EXPIRY_DAYS = 10
 
@@ -397,7 +400,7 @@ def event_detail(request, event_id):
     if not is_member:
         return Response({"detail": "Access denied"}, status=403)
 
-    serializer = EventSerializer(event)
+    serializer = EventSerializer(event, context={'request': request})
     return Response(serializer.data)
 
 
@@ -475,11 +478,20 @@ def update_event(request, event_id):
     event.name = request.data.get("name", event.name)
     event.description = request.data.get("description", event.description)
 
+    if "menu_file" in request.FILES:
+        event.menu_file = request.FILES["menu_file"]
+    if "cover_image" in request.FILES:
+        event.cover_image = request.FILES["cover_image"]
+
     event.save()
 
     serializer = EventSerializer(event)
     return Response(serializer.data, status=200)
 
+class ServeMenuPDF(View):
+    def get(self, request, filename):
+        filepath = os.path.join(settings.MEDIA_ROOT, "event_menus", filename)
+        return FileResponse(open(filepath, "rb"), content_type="application/pdf")
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

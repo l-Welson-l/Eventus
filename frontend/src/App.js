@@ -30,6 +30,7 @@ function App() {
       <Route path="/event/:eventId" element={<EventPage />} />
       <Route path="/events/create" element={<CreateEvent />} />
       <Route path="/events/:id/edit" element={<EditEvent />} />
+      
 
 
 
