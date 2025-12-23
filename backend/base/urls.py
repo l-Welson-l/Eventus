@@ -25,7 +25,7 @@ urlpatterns = [
     ),
     path("events/<uuid:event_id>/update/", update_event),
     path("my-events/", my_events),
-    path("media/event_menus/<str:filename>/view/", ServeMenuPDF.as_view())
+    path("media/event_menus/<str:filename>/view/", ServeMenuPDF.as_view()),
 
 
 
