@@ -8,15 +8,19 @@ import {
 import "./Community.css"
 
 export default function Community({ eventId }) {
-  const [posts, setPosts] = useState([]);
-  const [text, setText] = useState("");
-  const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(false);
+    const [posts, setPosts] = useState([]);
+    const [text, setText] = useState("");
+    const [image, setImage] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+    const [email, setEmail] = useState("");
+    const [emailMessage, setEmailMessage] = useState("");
 
-  const anonId = localStorage.getItem("anonymous_session_id");
+    const accessToken = localStorage.getItem("access");
+    const anonId = localStorage.getItem("anonymous_session_id");
 
   // Load posts
-      useEffect(() => {
+    useEffect(() => {
         let mounted = true;
 
         const fetchPosts = async () => {
@@ -36,54 +40,66 @@ export default function Community({ eventId }) {
         };
     }, [eventId]);
 
-  const submitPost = async () => {
-    if (!text && !image) return;
+    const submitPost = async () => {
+        if (!text && !image) return;
 
-    setLoading(true);
+        // ❗ Not logged in and no anon session → ask for email
+        if (!accessToken && !anonId) {
+            setShowEmailPrompt(true);
+            return;
+        }
 
-    const formData = new FormData();
-    formData.append("text", text);
-    if (image) formData.append("image", image);
-    if (anonId) formData.append("anonymous_session_id", anonId);
+        await actuallySubmitPost();
+    };
+    const actuallySubmitPost = async () => {
+        setLoading(true);
 
-    const res = await createPost(eventId, formData);
-    setPosts((prev) => [res.data, ...prev]);
+        const formData = new FormData();
+        formData.append("text", text);
+        if (image) formData.append("image", image);
 
-    setText("");
-    setImage(null);
-    setLoading(false);
-  };
+        const anonId = localStorage.getItem("anonymous_session_id");
+        if (anonId) formData.append("anonymous_session_id", anonId);
 
-  return (
-    <section className="community">
-      <h3>Community</h3>
+        const res = await createPost(eventId, formData);
+        setPosts((prev) => [res.data, ...prev]);
 
-      {/* CREATE POST */}
-      <div className="create-post">
-        <textarea
-          placeholder="Write something..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+        setText("");
+        setImage(null);
+        setLoading(false);
+    };
 
-        <input
-          type="file"
-          onChange={(e) => setImage(e.target.files[0])}
-        />
 
-        <button onClick={submitPost} disabled={loading}>
-          Post
-        </button>
-      </div>
+    return (
+        <section className="community">
+        <h3>Community</h3>
 
-      {/* POSTS */}
-      <div className="posts">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} anonId={anonId} />
-        ))}
-      </div>
-    </section>
-  );
+        {/* CREATE POST */}
+        <div className="create-post">
+            <textarea
+            placeholder="Write something..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            />
+
+            <input
+            type="file"
+            onChange={(e) => setImage(e.target.files[0])}
+            />
+
+            <button onClick={submitPost} disabled={loading}>
+            Post
+            </button>
+        </div>
+
+        {/* POSTS */}
+        <div className="posts">
+            {posts.map((post) => (
+            <PostCard key={post.id} post={post} anonId={anonId} />
+            ))}
+        </div>
+        </section>
+    );
 }
 
 /* ---------------- POST CARD ---------------- */
