@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import API from "../api/auth";
 import { Link } from "react-router-dom";
+import { logout } from "../utils/logout";
 
 export default function Dashboard() {
   const [qrPreview, setQrPreview] = useState(null);
@@ -55,9 +56,11 @@ export default function Dashboard() {
           <h3>Your Events</h3>
 
           {events.length === 0 ? (
-            <button style={styles.createBtn}>
-              ➕ Create your first event
-            </button>
+            <Link to="/events/create">
+              <button style={styles.createBtn}>
+                ➕ Create your first event
+              </button>
+            </Link>
           ) : (
             <>
               {events.map((e) => (
@@ -116,6 +119,14 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      <div style={styles.topBar}>
+        <div />
+        <button style={styles.logoutBtn} onClick={logout}>
+          Logout
+        </button>
+      </div>
+
     </div>
   );
 }
