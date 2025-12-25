@@ -155,7 +155,7 @@ class CommentSerializer(serializers.ModelSerializer):
             return obj.user.username.lower()
         if obj.anonymous_session:
             return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
-        return "anonymous"
+        return "Anonymous"
 
 
 class PostSerializer(serializers.ModelSerializer):
@@ -173,5 +173,5 @@ class PostSerializer(serializers.ModelSerializer):
             return obj.user.username.lower()
         if obj.anonymous_session:
             return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
-        return "anonymous"
+        return "Anonymous"
     

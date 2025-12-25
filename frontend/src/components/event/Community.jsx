@@ -1,153 +1,235 @@
-import { useEffect, useState } from "react";
-import {
-  getEventPosts,
-  createPost,
-  createComment,
-} from "../../api/events";
+import React, { useEffect, useState } from "react";
+import API from "../../api/auth";
 
-import "./Community.css"
+export default function CommunityPage({ eventId }) {
+  const [posts, setPosts] = useState([]);
+  const [text, setText] = useState("");
+  const [image, setImage] = useState(null);
 
-export default function Community({ eventId }) {
-    const [posts, setPosts] = useState([]);
-    const [text, setText] = useState("");
-    const [image, setImage] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [showEmailPrompt, setShowEmailPrompt] = useState(false);
-    const [email, setEmail] = useState("");
-    const [emailMessage, setEmailMessage] = useState("");
+  const [showAnonModal, setShowAnonModal] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
 
-    const accessToken = localStorage.getItem("access");
-    const anonId = localStorage.getItem("anonymous_session_id");
+  /* -----------------------------
+     LOAD POSTS (polling = realtime-ish)
+  ------------------------------ */
+  useEffect(() => {
+    fetchPosts();
+    const interval = setInterval(fetchPosts, 3000);
+    return () => clearInterval(interval);
+  }, [eventId]);
 
-  // Load posts
-    useEffect(() => {
-        let mounted = true;
-
-        const fetchPosts = async () => {
-            const res = await getEventPosts(eventId);
-            if (mounted) {
-            setPosts(res.data);
-            }
-        };
-
-        fetchPosts(); // initial load
-
-        const interval = setInterval(fetchPosts, 3000); // poll every 3 seconds
-
-        return () => {
-            mounted = false;
-            clearInterval(interval);
-        };
-    }, [eventId]);
-
-    const submitPost = async () => {
-        if (!text && !image) return;
-
-        // ❗ Not logged in and no anon session → ask for email
-        if (!accessToken && !anonId) {
-            setShowEmailPrompt(true);
-            return;
-        }
-
-        await actuallySubmitPost();
-    };
-    const actuallySubmitPost = async () => {
-        setLoading(true);
-
-        const formData = new FormData();
-        formData.append("text", text);
-        if (image) formData.append("image", image);
-
-        const anonId = localStorage.getItem("anonymous_session_id");
-        if (anonId) formData.append("anonymous_session_id", anonId);
-
-        const res = await createPost(eventId, formData);
-        setPosts((prev) => [res.data, ...prev]);
-
-        setText("");
-        setImage(null);
-        setLoading(false);
-    };
-
-
-    return (
-        <section className="community">
-        <h3>Community</h3>
-
-        {/* CREATE POST */}
-        <div className="create-post">
-            <textarea
-            placeholder="Write something..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            />
-
-            <input
-            type="file"
-            onChange={(e) => setImage(e.target.files[0])}
-            />
-
-            <button onClick={submitPost} disabled={loading}>
-            Post
-            </button>
-        </div>
-
-        {/* POSTS */}
-        <div className="posts">
-            {posts.map((post) => (
-            <PostCard key={post.id} post={post} anonId={anonId} />
-            ))}
-        </div>
-        </section>
-    );
-}
-
-/* ---------------- POST CARD ---------------- */
-
-function PostCard({ post, anonId }) {
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(post.comments || []);
-
-  const submitComment = async () => {
-    if (!comment) return;
-
-    const res = await createComment(post.id, {
-      text: comment,
-      anonymous_session_id: anonId,
-    });
-
-    setComments([...comments, res.data]);
-    setComment("");
+  const fetchPosts = async () => {
+    try {
+      const res = await API.get(`/events/${eventId}/posts/`);
+      setPosts(res.data);
+    } catch (err) {
+      console.error("Failed to fetch posts");
+    }
   };
 
+  /* -----------------------------
+     SOFT GATE ON PAGE LOAD
+  ------------------------------ */
+  useEffect(() => {
+    const access = localStorage.getItem("access");
+    const anon = localStorage.getItem("anonymous_session_id");
+    const dismissed = localStorage.getItem("anon_prompt_dismissed");
+
+    if (!access && !anon && !dismissed) {
+      setShowAnonModal(true);
+    }
+  }, []);
+
+  /* -----------------------------
+     POST HANDLERS
+  ------------------------------ */
+  const submitPost = async () => {
+    if (!text && !image) return;
+
+    const access = localStorage.getItem("access");
+    const anon = localStorage.getItem("anonymous_session_id");
+
+    // HARD GATE
+    if (!access && !anon) {
+      setShowAnonModal(true);
+      return;
+    }
+
+    await actuallySubmitPost();
+  };
+
+  const actuallySubmitPost = async () => {
+    const formData = new FormData();
+    formData.append("text", text);
+    if (image) formData.append("image", image);
+
+    const anonId = localStorage.getItem("anonymous_session_id");
+    if (anonId) formData.append("anonymous_session_id", anonId);
+
+    try {
+      await API.post(
+        `/events/${eventId}/posts/`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      setText("");
+      setImage(null);
+      fetchPosts();
+    } catch (err) {
+      console.error("Post failed");
+    }
+  };
+
+  /* -----------------------------
+     ANON EMAIL SUBMIT
+  ------------------------------ */
+  const submitAnonEmail = async () => {
+    setEmailError("");
+
+    if (!email.includes("@")) {
+      setEmailError("Enter a valid email");
+      return;
+    }
+
+    try {
+      const res = await API.post("/auth/magic-link/", {
+        email,
+        anonymous_session_id: null,
+      });
+
+      localStorage.setItem(
+        "anonymous_session_id",
+        res.data.anonymous_session_id
+      );
+      localStorage.removeItem("anon_prompt_dismissed");
+
+      setShowAnonModal(false);
+      setEmail("");
+
+      setTimeout(actuallySubmitPost, 200);
+    } catch (err) {
+      setEmailError(
+        err.response?.data?.detail || "Failed to send email"
+      );
+    }
+  };
+
+  /* -----------------------------
+     UI
+  ------------------------------ */
   return (
-    <div className="post-card">
+    <div style={{ padding: 20 }}>
 
-        <span className="author-name">{post.author_name}</span>
-        
-        <p>{post.text}</p>
+      <h2>Community</h2>
 
-        {post.image && (
-            <img src={post.image} alt="" className="post-image" />
-        )}
-
-        {/* COMMENTS */}
-        <div className="comments">
-            {comments.map((c) => (
-            <p key={c.id} className="comment">
-                <span className="author-name">{c.author_name}</span>
-                {c.text}
-            </p>
-            ))}
-        </div>
-
-        {/* ADD COMMENT */}
-        <input
-            placeholder="Write a comment..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
+      {/* CREATE POST */}
+      <div style={{ marginBottom: 20 }}>
+        <textarea
+          placeholder="Write something..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{ width: "100%", padding: 10 }}
         />
-        <button onClick={submitComment}>Comment</button>
+
+        <input
+          type="file"
+          onChange={(e) => setImage(e.target.files[0])}
+        />
+
+        <button onClick={submitPost} style={{ marginTop: 10 }}>
+          Post
+        </button>
+      </div>
+
+      {/* POSTS */}
+      {posts.map((post) => (
+        <div
+          key={post.id}
+          style={{
+            border: "1px solid #ddd",
+            padding: 10,
+            marginBottom: 10,
+            borderRadius: 6,
+          }}
+        >
+          <small style={{ color: "#666" }}>
+            {post.author_name}
+          </small>
+
+          <p>{post.text}</p>
+
+          {post.image && (
+            <img
+              src={post.image}
+              alt=""
+              style={{ maxWidth: "100%", borderRadius: 6 }}
+            />
+          )}
+        </div>
+      ))}
+
+      {/* ANON MODAL */}
+      {showAnonModal && (
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            <h3>Enter your email</h3>
+            <p>You need an email to post.</p>
+
+            <input
+              type="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ width: "100%", padding: 8 }}
+            />
+
+            {emailError && (
+              <p style={{ color: "red" }}>{emailError}</p>
+            )}
+
+            <div style={{ marginTop: 10 }}>
+              <button onClick={submitAnonEmail}>
+                Continue
+              </button>
+
+              <button
+                style={{ marginLeft: 10 }}
+                onClick={() => {
+                  localStorage.setItem(
+                    "anon_prompt_dismissed",
+                    "true"
+                  );
+                  setShowAnonModal(false);
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+/* -----------------------------
+   STYLES
+------------------------------ */
+const modalOverlay = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.4)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+};
+
+const modalBox = {
+  background: "#fff",
+  padding: 20,
+  borderRadius: 8,
+  width: 300,
+};
