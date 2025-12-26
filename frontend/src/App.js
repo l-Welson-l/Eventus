@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import RegisterSelect from "./pages/RegisterSelect";
+import RegisterSelect from "./pages/HomePage";
 import RegisterCustomer from "./pages/RegisterCustomer";
 import RegisterBusiness from "./pages/RegisterBusiness";
 import Login from "./pages/LoginPage";
@@ -16,7 +16,7 @@ import EditEvent from "./pages/EditEvent";
 function App() {
   return (
     <Routes>
-      <Route path="/register" element={<RegisterSelect />} />
+      <Route path="/" element={<RegisterSelect />} />
       <Route path="/register/customer" element={<RegisterCustomer />} />
       <Route path="/register/business" element={<RegisterBusiness />} />
       <Route path="/login" element={<Login />} />
