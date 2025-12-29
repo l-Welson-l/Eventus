@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, SubTopic
 from .utils import validate_email
 
 
@@ -159,13 +159,24 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
-    comments = CommentSerializer(many=True, read_only=True)
-    image = serializers.ImageField(required=False)
     author_name = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    subtopic_title = serializers.CharField(
+        source="subtopic.title",
+        read_only=True
+    )
 
     class Meta:
         model = Post
-        fields = "__all__"
+        fields = [
+            "id",
+            "text",
+            "subtopic",
+            "subtopic_title",
+            "author_name",
+            "comment_count",
+            "created_at",
+        ]
         read_only_fields = ["event", "user", "anonymous_session"]
 
     def get_author_name(self, obj):
@@ -174,4 +185,11 @@ class PostSerializer(serializers.ModelSerializer):
         if obj.anonymous_session:
             return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
         return "Anonymous"
-    
+
+    def get_comment_count(self, obj):
+        return obj.comments.count()
+
+class SubTopicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubTopic
+        fields = ["id", "title"]

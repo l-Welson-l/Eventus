@@ -144,14 +144,31 @@ class EventMembership(models.Model):
         )
 
 
+class SubTopic(models.Model):
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="subtopics"
+    )
+    title = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.title
+
 
 class Post(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subtopic = models.ForeignKey(
+        SubTopic,
+        on_delete=models.CASCADE,
+        null = True,
+        blank = True,
+        related_name="posts"
+    )
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="posts")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     anonymous_session = models.ForeignKey('AnonymousSession', on_delete=models.SET_NULL, null=True, blank=True)
-    image = models.ImageField(upload_to="posts/", null=True, blank=True)
-    text = models.TextField(blank=True)
+    text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

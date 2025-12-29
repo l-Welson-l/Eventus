@@ -15,10 +15,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, FileResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, SubTopic
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, SubTopicSerializer
 from django.utils import timezone
 from django.views import View
 import os
@@ -487,20 +487,41 @@ class EventPostListCreateView(EventJoinMixin, generics.ListCreateAPIView):
     serializer_class = PostSerializer
 
     def get_queryset(self):
-        return Post.objects.filter(
-            event_id=self.kwargs["event_id"]
-        ).select_related("user", "anonymous_session") \
-         .prefetch_related("comments")
+        return (
+            Post.objects
+            .filter(event_id=self.kwargs["event_id"])
+            .select_related("user", "anonymous_session", "subtopic")
+            .prefetch_related("comments")
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
         event = get_object_or_404(Event, id=self.kwargs["event_id"])
         author = self.ensure_membership(self.request, event)
 
-        serializer.save(
-            event=event,
-            **author
+        serializer.save(event=event, **author)
+
+
+class SubTopicListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = SubTopicSerializer
+
+    def get_queryset(self):
+        return SubTopic.objects.filter(
+            event_id=self.kwargs["event_id"]
         )
 
+class SubTopicCreateView(generics.CreateAPIView):
+    serializer_class = SubTopicSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        event = get_object_or_404(Event, id=self.kwargs["event_id"])
+
+        if event.admin != self.request.user:
+            raise PermissionDenied("Only event admin can create subtopics")
+
+        serializer.save(event=event)
 
 class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
     permission_classes = [AllowAny]
@@ -513,4 +534,15 @@ class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
         serializer.save(
             post=post,
             **author
+        )
+class CommentListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        return (
+            Comment.objects
+            .filter(post_id=self.kwargs["post_id"])
+            .select_related("user", "anonymous_session")
+            .order_by("created_at")
         )

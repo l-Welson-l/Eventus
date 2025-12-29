@@ -35,9 +35,25 @@ urlpatterns = [
         name="event-posts"
     ),
     path(
-        "posts/<uuid:post_id>/comments/",
+        "posts/<uuid:post_id>/comments/create/",
         CommentCreateView.as_view(),
         name="post-comments"
+    ),
+    path(
+        "posts/<uuid:post_id>/comments/",
+        CommentListView.as_view(),
+        name="comment-list",
+    ),
+
+    path(
+        "events/<uuid:event_id>/subtopics/",
+        SubTopicListView.as_view(),
+        name="event-subtopics",
+    ),
+    path(
+        "events/<uuid:event_id>/subtopics/create/",
+        SubTopicCreateView.as_view(),
+        name="subtopic-create",
     ),
 
 ]
