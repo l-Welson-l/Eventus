@@ -9,3 +9,4 @@ backend/base/migrations/__pycache__/
 db.sqlite3
 backend/db.sqlite3
 .env
+backend/base/migrations

@@ -36,3 +36,4 @@ export const createPost = (eventId, data) =>
 // Create comment
 export const createComment = (postId, data) =>
   API.post(`/posts/${postId}/comments/`, data);
+

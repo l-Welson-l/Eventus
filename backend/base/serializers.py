@@ -127,9 +127,9 @@ class EventSerializer(serializers.ModelSerializer):
             "qr_code",
             "features",
 
-            "menu_file",   # ✅ added
+            "menu_file", 
             "cover_image",
-            "menu_file_url", # ✅ optional
+            "menu_file_url", 
             "features"
         ]
 
