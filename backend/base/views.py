@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, FileResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, SubTopic
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, SubTopic, PostLike, CommentLike
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, SubTopicSerializer
@@ -305,6 +305,14 @@ def complete_magic_signup(request):
             anonymous_session=None
         )
 
+        PostLike.objects.filter(
+            anonymous_session=m.anonymous_session
+        ).update(user=user, anonymous_session=None)
+
+        CommentLike.objects.filter(
+            anonymous_session=m.anonymous_session
+        ).update(user=user, anonymous_session=None)
+
     # 4️⃣ Mark token used
     m.used = True
     m.save()
@@ -416,6 +424,11 @@ class CreateEventView(APIView):
             business=business,
             name=request.data["name"],
             description=request.data.get("description", "")
+        )
+        SubTopic.objects.get_or_create(
+            event=event,
+            is_default=True,
+            defaults={"title": "Discussion"}
         )
 
         selected_features = request.data.get("features", [])
@@ -563,3 +576,38 @@ class CommentListView(generics.ListAPIView):
             .select_related("user", "anonymous_session")
             .order_by("created_at")
         )
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def toggle_post_like(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    author = EventJoinMixin().ensure_membership(request, post.event)
+
+    like, created = PostLike.objects.get_or_create(
+        post=post,
+        **author
+    )
+
+    if not created:
+        like.delete()
+        return Response({"liked": False, "like_count": post.likes.count()})
+
+    return Response({"liked": True, "like_count": post.likes.count()})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def toggle_comment_like(request, comment_id):
+    comment = get_object_or_404(Comment, id=comment_id)
+    author = EventJoinMixin().ensure_membership(request, comment.post.event)
+
+    like, created = CommentLike.objects.get_or_create(
+        comment=comment,
+        **author
+    )
+
+    if not created:
+        like.delete()
+        return Response({"liked": False, "like_count": comment.likes.count()})
+
+    return Response({"liked": True, "like_count": comment.likes.count()})

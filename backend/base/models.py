@@ -151,6 +151,10 @@ class SubTopic(models.Model):
         related_name="subtopics"
     )
     title = models.CharField(max_length=100)
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("event", "is_default")
 
     def __str__(self):
         return self.title
@@ -162,7 +166,6 @@ class Post(models.Model):
         SubTopic,
         on_delete=models.CASCADE,
         null = True,
-        blank = True,
         related_name="posts"
     )
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="posts")
@@ -184,3 +187,22 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment on {self.post.id}"
+
+class PostLike(models.Model):
+    post = models.ForeignKey(Post, related_name="likes", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE)
+    anonymous_session = models.ForeignKey(
+        AnonymousSession, null=True, blank=True, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        unique_together = ("post", "user", "anonymous_session")
+
+class CommentLike(models.Model):
+    comment = models.ForeignKey(Comment, related_name="likes", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE)
+    anonymous_session = models.ForeignKey(AnonymousSession, null=True, blank=True, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("comment", "user", "anonymous_session")

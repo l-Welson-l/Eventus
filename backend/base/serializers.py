@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, SubTopic
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, SubTopic, PostLike, CommentLike
 from .utils import validate_email
 
 
@@ -144,6 +144,7 @@ class EventSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
+    like_count = serializers.IntegerField(source="likes.count", read_only=True)
 
     class Meta:
         model = Comment
@@ -165,6 +166,7 @@ class PostSerializer(serializers.ModelSerializer):
         source="subtopic.title",
         read_only=True
     )
+    like_count = serializers.IntegerField(source="likes.count", read_only=True)
 
     class Meta:
         model = Post
@@ -175,6 +177,7 @@ class PostSerializer(serializers.ModelSerializer):
             "subtopic_title",
             "author_name",
             "comment_count",
+            "like_count",
             "created_at",
         ]
         read_only_fields = ["event", "user", "anonymous_session"]

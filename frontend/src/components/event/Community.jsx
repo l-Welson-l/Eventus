@@ -141,6 +141,32 @@ const [commentText, setCommentText] = useState("");
         }
     };
 
+    const likePost = async (postId) => {
+        
+        const anon = localStorage.getItem("anonymous_session_id");
+
+        try {
+            await API.post(`/posts/${postId}/like/`, {
+            anonymous_session_id: anon,
+            });
+            fetchPosts(); // refresh counts
+        } catch (err) {
+            setShowAnonModal(true);
+        }
+    };
+
+    const likeComment = async (commentId) => {
+        const anon = localStorage.getItem("anonymous_session_id");
+
+        await API.post(`/comments/${commentId}/like/`, {
+            anonymous_session_id: anon,
+        });
+
+        openPost(activePost); // reload comments
+    };
+
+
+
   return (
     <div style={{ padding: 20 }}>
     <h2>Discussions</h2>
@@ -188,9 +214,19 @@ const [commentText, setCommentText] = useState("");
             }}
             >
             <strong>{post.subtopic_title}</strong>
+            <small>{post.author_name}</small>
             <p>{post.text}</p>
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    likePost(post.id);
+                }}
+                >
+                ❤️ {post.like_count}
+            </button>
+
             <small style={{ color: "#666" }}>
-                {post.author_name} • {post.comment_count} comments
+                {post.comment_count} comments
             </small>
             </div>
         ))}
@@ -227,6 +263,9 @@ const [commentText, setCommentText] = useState("");
                 {c.author_name}
                 </small>
                 <p>{c.text}</p>
+                <button onClick={() => likeComment(c.id)}>
+                    ❤️ {c.like_count}
+                </button>
             </div>
             ))
         )}

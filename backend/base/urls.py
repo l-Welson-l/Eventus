@@ -56,4 +56,9 @@ urlpatterns = [
         name="subtopic-create",
     ),
 
+
+    path("posts/<uuid:post_id>/like/", toggle_post_like),
+    path("comments/<uuid:comment_id>/like/", toggle_comment_like),
+
+
 ]
