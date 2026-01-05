@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.views import View
 import os
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db import IntegrityError, transaction
 
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -563,17 +564,36 @@ class ToggleMomentLikeView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, moment_id):
-        moment = Moment.objects.get(id=moment_id)
+        moment = get_object_or_404(Moment, id=moment_id)
 
-        like, created = MomentLike.objects.get_or_create(
-            moment=moment,
-            user=request.user if request.user.is_authenticated else None,
-            anonymous_session=getattr(request, "anonymous_session", None),
-        )
+        # Get user or anonymous session
+        user = request.user if request.user.is_authenticated else None
+        anon_id = request.data.get("anonymous_session_id")
+        anon = None
+        if anon_id:
+            anon = get_object_or_404(AnonymousSession, session_id=anon_id)
 
-        if not created:
-            like.delete()
-            return Response({"liked": False})
+        if not user and not anon:
+            return Response({"error": "Must provide user or anonymous_session"}, status=400)
 
-        return Response({"liked": True})
-    
+        # Wrap in transaction to avoid race conditions
+        try:
+            with transaction.atomic():
+                like, created = MomentLike.objects.get_or_create(
+                    moment=moment,
+                    user=user,
+                    anonymous_session=anon,
+                )
+
+                if not created:
+                    like.delete()
+                    liked = False
+                else:
+                    liked = True
+
+                # Return current likes count
+                likes_count = MomentLike.objects.filter(moment=moment).count()
+
+                return Response({"liked": liked, "likes_count": likes_count})
+        except IntegrityError:
+            return Response({"error": "Cannot like this moment"}, status=400)

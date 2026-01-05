@@ -1,0 +1,30 @@
+.moment-card {
+  border: 1px solid #ddd;
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.moment-media {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.moment-media img,
+.moment-media video {
+  max-width: 200px;
+  border-radius: 6px;
+}
+
+.like-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.like-btn.liked {
+  color: red;
+  font-weight: bold;
+}

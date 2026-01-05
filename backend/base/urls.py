@@ -42,7 +42,8 @@ urlpatterns = [
     path("events/<uuid:event_id>/moments/", EventMomentsListView.as_view(), name="event-moments-list"),
     
      path("moments/create/", CreateMomentView.as_view(), name="create-moment"),
-     
+     path("moments/<uuid:moment_id>/like/", ToggleMomentLikeView.as_view())
+
 
 
 
