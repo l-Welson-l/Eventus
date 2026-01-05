@@ -39,7 +39,7 @@ export default function EventPage() {
       case "menu":
         return <Menu event={event} />;
       case "moments":
-        return <Moments />;
+        return <Moments eventId={eventId} />;
       case "community":
         return <Community eventId={eventId} />;
       case "users":

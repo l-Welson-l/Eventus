@@ -56,7 +56,7 @@ export default function Login() {
       
 
       <hr />
-      <Link to="/register">
+      <Link to="/">
           Register
         </Link>
 

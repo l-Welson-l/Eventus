@@ -10,7 +10,11 @@ from .models import (
     Post,
     AnonymousSession,
     MagicLinkToken,
-    EventFeature,  
+    EventFeature, 
+    Moment,
+    MomentMedia,
+    MomentLike,
+
 )
 
 @admin.register(User)
@@ -105,3 +109,52 @@ class AnonymousSessionAdmin(admin.ModelAdmin):
 class MagicLinkTokenAdmin(admin.ModelAdmin):
     list_display = ("email", "used", "expires_at", "created_at")
     list_filter = ("used",)
+
+class MomentMediaInline(admin.TabularInline):
+    model = MomentMedia
+    extra = 0
+
+
+@admin.register(Moment)
+class MomentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "event",
+        "user",
+        "anonymous_session",
+        "likes_count",
+        "created_at",
+    )
+
+    list_filter = ("event", "created_at")
+    search_fields = ("caption",)
+
+    inlines = [MomentMediaInline]
+
+    readonly_fields = ("likes_count", "created_at")
+
+
+@admin.register(MomentMedia)
+class MomentMediaAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "moment",
+        "media_type",
+        "order",
+        "created_at",
+    )
+
+    list_filter = ("media_type",)
+
+
+@admin.register(MomentLike)
+class MomentLikeAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "moment",
+        "user",
+        "anonymous_session",
+        "created_at",
+    )
+
+    list_filter = ("created_at",)

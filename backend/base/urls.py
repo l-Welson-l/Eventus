@@ -39,5 +39,11 @@ urlpatterns = [
         CommentCreateView.as_view(),
         name="post-comments"
     ),
+    path("events/<uuid:event_id>/moments/", EventMomentsListView.as_view(), name="event-moments-list"),
+    
+     path("moments/create/", CreateMomentView.as_view(), name="create-moment"),
+     
+
+
 
 ]

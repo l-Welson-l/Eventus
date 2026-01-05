@@ -12,16 +12,17 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, JsonResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, MomentSerializer
 from django.utils import timezone
 from django.views import View
 import os
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -514,3 +515,65 @@ class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
             post=post,
             **author
         )
+
+class EventMomentsListView(generics.ListAPIView):
+    serializer_class = MomentSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        event_id = self.kwargs["event_id"]
+        return Moment.objects.filter(event_id=event_id).prefetch_related("media").select_related("user", "anonymous_session")
+   
+class CreateMomentView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        event_id = request.data.get("event")
+        caption = request.data.get("caption", "")
+
+        event = get_object_or_404(Event, id=event_id)
+
+        # Determine author
+        user = request.user if request.user.is_authenticated else None
+        anon_session = getattr(request, "anonymous_session", None)
+
+        moment = Moment.objects.create(
+            event=event,
+            user=user,
+            anonymous_session=anon_session,
+            caption=caption
+        )
+
+        files = request.FILES.getlist("files")
+        for index, file in enumerate(files):
+            media_type = "video" if file.content_type.startswith("video") else "image"
+            MomentMedia.objects.create(
+                moment=moment,
+                file=file,
+                media_type=media_type,
+                order=index
+            )
+
+        serializer = MomentSerializer(moment, context={"request": request})
+        return Response(serializer.data, status=201)
+
+
+class ToggleMomentLikeView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, moment_id):
+        moment = Moment.objects.get(id=moment_id)
+
+        like, created = MomentLike.objects.get_or_create(
+            moment=moment,
+            user=request.user if request.user.is_authenticated else None,
+            anonymous_session=getattr(request, "anonymous_session", None),
+        )
+
+        if not created:
+            like.delete()
+            return Response({"liked": False})
+
+        return Response({"liked": True})
+    
