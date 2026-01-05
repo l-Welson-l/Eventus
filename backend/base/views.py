@@ -283,7 +283,24 @@ def complete_magic_signup(request):
 
     # 3️⃣ Merge anonymous data
     if m.anonymous_session:
-        Post.objects.filter(anonymous_session=m.anonymous_session).update(
+        anon = m.anonymous_session
+
+        # Attach anon session to user (IMPORTANT)
+        anon.user = user
+        anon.save()
+
+        # Update posts
+        Post.objects.filter(
+            anonymous_session=anon
+        ).update(
+            user=user,
+            anonymous_session=None
+        )
+
+        # Update comments
+        Comment.objects.filter(
+            anonymous_session=anon
+        ).update(
             user=user,
             anonymous_session=None
         )

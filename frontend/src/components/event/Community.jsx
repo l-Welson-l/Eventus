@@ -43,16 +43,18 @@ const [commentText, setCommentText] = useState("");
   };
 
     const submitPost = async () => {
-        if (!text || !subtopic) return;
-
         const access = localStorage.getItem("access");
         const anon = localStorage.getItem("anonymous_session_id");
 
+        // 🔒 HARD GATE FIRST
         if (!access && !anon) {
             setPendingAction("post");
             setShowAnonModal(true);
             return;
         }
+
+        // ✅ THEN validate
+        if (!text || !subtopic) return;
 
         await API.post(`/events/${eventId}/posts/`, {
             text,
