@@ -60,5 +60,12 @@ urlpatterns = [
     path("posts/<uuid:post_id>/like/", toggle_post_like),
     path("comments/<uuid:comment_id>/like/", toggle_comment_like),
 
+    path("events/<uuid:event_id>/moments/", EventMomentsListView.as_view(), name="event-moments-list"),
+    
+     path("moments/create/", CreateMomentView.as_view(), name="create-moment"),
+     path("moments/<uuid:moment_id>/like/", ToggleMomentLikeView.as_view())
+
+
+
 
 ]

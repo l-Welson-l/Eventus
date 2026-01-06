@@ -206,3 +206,103 @@ class CommentLike(models.Model):
 
     class Meta:
         unique_together = ("comment", "user", "anonymous_session")
+class Moment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="moments"
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    anonymous_session = models.ForeignKey(
+        AnonymousSession,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    caption = models.TextField(blank=True, null=True)
+
+    likes_count = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Moment in {self.event.name}"
+
+
+class MomentMedia(models.Model):
+    MEDIA_TYPE_CHOICES = (
+        ("image", "Image"),
+        ("video", "Video"),
+    )
+
+    moment = models.ForeignKey(
+        Moment,
+        on_delete=models.CASCADE,
+        related_name="media"
+    )
+
+    media_type = models.CharField(
+        max_length=10,
+        choices=MEDIA_TYPE_CHOICES
+    )
+
+    file = models.FileField(upload_to="moments/")
+
+    order = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+
+
+class MomentLike(models.Model):
+    moment = models.ForeignKey(
+        Moment,
+        on_delete=models.CASCADE,
+        related_name="likes"
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
+    )
+
+    anonymous_session = models.ForeignKey(
+        AnonymousSession,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (
+            ("moment", "user"),
+            ("moment", "anonymous_session"),
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        Moment.objects.filter(id=self.moment_id).update(
+            likes_count=models.F("likes_count") + 1
+        )
+
+    def delete(self, *args, **kwargs):
+        Moment.objects.filter(id=self.moment_id).update(
+            likes_count=models.F("likes_count") - 1
+        )
+        super().delete(*args, **kwargs)

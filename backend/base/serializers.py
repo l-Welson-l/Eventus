@@ -2,6 +2,7 @@ from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
 from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, SubTopic, PostLike, CommentLike
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, MomentMedia, Moment
 from .utils import validate_email
 
 
@@ -196,3 +197,31 @@ class SubTopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubTopic
         fields = ["id", "title"]
+
+class MomentMediaSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MomentMedia
+        fields = ["id", "media_type", "file", "file_url", "order"]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url
+
+
+class MomentSerializer(serializers.ModelSerializer):
+    media = MomentMediaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Moment
+        fields = [
+            "id",
+            "event",
+            "caption",
+            "media",
+            "likes_count",
+            "created_at",
+        ]

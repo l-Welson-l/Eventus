@@ -12,16 +12,22 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, JsonResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
 from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, SubTopic, PostLike, CommentLike
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, SubTopicSerializer
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike
+from django.contrib.auth.hashers import make_password
+from .utils import generate_qr_base64
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, MomentSerializer
 from django.utils import timezone
 from django.views import View
 import os
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.db import IntegrityError, transaction
 
 
 MAGIC_LINK_EXPIRY_DAYS = 10
@@ -611,3 +617,84 @@ def toggle_comment_like(request, comment_id):
         return Response({"liked": False, "like_count": comment.likes.count()})
 
     return Response({"liked": True, "like_count": comment.likes.count()})
+
+class EventMomentsListView(generics.ListAPIView):
+    serializer_class = MomentSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        event_id = self.kwargs["event_id"]
+        return Moment.objects.filter(event_id=event_id).prefetch_related("media").select_related("user", "anonymous_session")
+   
+class CreateMomentView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        event_id = request.data.get("event")
+        caption = request.data.get("caption", "")
+
+        event = get_object_or_404(Event, id=event_id)
+
+        # Determine author
+        user = request.user if request.user.is_authenticated else None
+        anon_session = getattr(request, "anonymous_session", None)
+
+        moment = Moment.objects.create(
+            event=event,
+            user=user,
+            anonymous_session=anon_session,
+            caption=caption
+        )
+
+        files = request.FILES.getlist("files")
+        for index, file in enumerate(files):
+            media_type = "video" if file.content_type.startswith("video") else "image"
+            MomentMedia.objects.create(
+                moment=moment,
+                file=file,
+                media_type=media_type,
+                order=index
+            )
+
+        serializer = MomentSerializer(moment, context={"request": request})
+        return Response(serializer.data, status=201)
+
+
+class ToggleMomentLikeView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, moment_id):
+        moment = get_object_or_404(Moment, id=moment_id)
+
+        # Get user or anonymous session
+        user = request.user if request.user.is_authenticated else None
+        anon_id = request.data.get("anonymous_session_id")
+        anon = None
+        if anon_id:
+            anon = get_object_or_404(AnonymousSession, session_id=anon_id)
+
+        if not user and not anon:
+            return Response({"error": "Must provide user or anonymous_session"}, status=400)
+
+        # Wrap in transaction to avoid race conditions
+        try:
+            with transaction.atomic():
+                like, created = MomentLike.objects.get_or_create(
+                    moment=moment,
+                    user=user,
+                    anonymous_session=anon,
+                )
+
+                if not created:
+                    like.delete()
+                    liked = False
+                else:
+                    liked = True
+
+                # Return current likes count
+                likes_count = MomentLike.objects.filter(moment=moment).count()
+
+                return Response({"liked": liked, "likes_count": likes_count})
+        except IntegrityError:
+            return Response({"error": "Cannot like this moment"}, status=400)
