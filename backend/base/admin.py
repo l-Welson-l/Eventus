@@ -14,6 +14,9 @@ from .models import (
     Moment,
     MomentMedia,
     MomentLike,
+    Menu,
+    MenuCategory,
+    MenuItem,
 
 )
 
@@ -158,3 +161,34 @@ class MomentLikeAdmin(admin.ModelAdmin):
     )
 
     list_filter = ("created_at",)
+
+
+class MenuItemInline(admin.TabularInline):
+    model = MenuItem
+    extra = 1
+    fields = ("name", "price", "description", "image", "order")
+
+class MenuCategoryInline(admin.StackedInline):
+    model = MenuCategory
+    extra = 1
+    fields = ("name", "order")
+
+@admin.register(Menu)
+class MenuAdmin(admin.ModelAdmin):
+    list_display = ("event", "title", "created_at")
+    search_fields = ("event__name", "title")
+    inlines = [MenuCategoryInline]
+
+
+@admin.register(MenuCategory)
+class MenuCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "menu", "order")
+    ordering = ("menu", "order")
+    inlines = [MenuItemInline]
+
+
+@admin.register(MenuItem)
+class MenuItemAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "price", "order")
+    list_editable = ("price", "order")
+    search_fields = ("name",)

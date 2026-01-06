@@ -1,7 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
-from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, MomentMedia, Moment
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, MomentMedia, Moment, Menu, MenuCategory, MenuItem
 from .utils import validate_email
 
 
@@ -203,3 +203,24 @@ class MomentSerializer(serializers.ModelSerializer):
             "likes_count",
             "created_at",
         ]
+
+class MenuItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItem
+        fields = "__all__"
+
+
+class MenuCategorySerializer(serializers.ModelSerializer):
+    items = MenuItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = MenuCategory
+        fields = "__all__"
+
+
+class MenuSerializer(serializers.ModelSerializer):
+    categories = MenuCategorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Menu
+        fields = "__all__"

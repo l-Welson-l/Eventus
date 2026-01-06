@@ -15,10 +15,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike, Menu, MenuItem
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, MomentSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, MomentSerializer, MenuCategorySerializer, MenuItemSerializer, MenuSerializer
 from django.utils import timezone
 from django.views import View
 import os
@@ -597,3 +597,43 @@ class ToggleMomentLikeView(APIView):
                 return Response({"liked": liked, "likes_count": likes_count})
         except IntegrityError:
             return Response({"error": "Cannot like this moment"}, status=400)
+        
+
+@api_view(["GET"])
+def get_menu(request, event_id):
+    event = Event.objects.get(id=event_id)
+
+    # Optional safety check
+    if not event.features.filter(key="menu").exists():
+        return Response({"detail": "Menu disabled"}, status=403)
+
+    menu, _ = Menu.objects.get_or_create(event=event)
+    return Response(MenuSerializer(menu).data)
+
+@api_view(["POST"])
+def create_category(request):
+    serializer = MenuCategorySerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=201)
+
+@api_view(["POST"])
+def create_item(request):
+    serializer = MenuItemSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=201)
+
+@api_view(["PATCH"])
+def update_item(request, item_id):
+    try:
+        item = MenuItem.objects.get(id=item_id)
+    except MenuItem.DoesNotExist:
+        return Response({"detail": "Item not found"}, status=404)
+
+    serializer = MenuItemSerializer(item, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+

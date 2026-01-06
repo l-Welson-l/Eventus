@@ -267,3 +267,62 @@ class MomentLike(models.Model):
             likes_count=models.F("likes_count") - 1
         )
         super().delete(*args, **kwargs)
+
+
+class Menu(models.Model):
+    event = models.OneToOneField(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="menu"
+    )
+
+    title = models.CharField(max_length=120, default="Menu")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Menu for {self.event.name}"
+
+
+class MenuCategory(models.Model):
+    menu = models.ForeignKey(
+        Menu,
+        on_delete=models.CASCADE,
+        related_name="categories"
+    )
+
+    name = models.CharField(max_length=80)
+    order = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.name} ({self.menu.event.name})"
+
+    class Meta:
+        ordering = ["order", "id"]
+
+
+class MenuItem(models.Model):
+    category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.CASCADE,
+        related_name="items"
+    )
+
+    name = models.CharField(max_length=120)
+    price = models.CharField(max_length=20)
+    description = models.TextField(blank=True)
+
+    image = models.ImageField(
+        upload_to="menu_items/",
+        null=True,
+        blank=True
+    )
+
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
+
+    class Meta:
+        ordering = ["order", "id"]

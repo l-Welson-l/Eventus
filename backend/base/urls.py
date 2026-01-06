@@ -41,8 +41,14 @@ urlpatterns = [
     ),
     path("events/<uuid:event_id>/moments/", EventMomentsListView.as_view(), name="event-moments-list"),
     
-     path("moments/create/", CreateMomentView.as_view(), name="create-moment"),
-     path("moments/<uuid:moment_id>/like/", ToggleMomentLikeView.as_view())
+    path("moments/create/", CreateMomentView.as_view(), name="create-moment"),
+    path("moments/<uuid:moment_id>/like/", ToggleMomentLikeView.as_view()),
+    path("events/<uuid:event_id>/menu/", get_menu),
+    path("menu/categories/", create_category),
+    path("menu/items/", create_item),
+    # urls.py
+    path("menu/items/<int:item_id>/", update_item, name="update_item"),
+
 
 
 

@@ -12,6 +12,8 @@ import EventJoin from "./pages/EventJoin";
 import EventPage from "./pages/EventPage";
 import CreateEvent from "./pages/CreateEvent";
 import EditEvent from "./pages/EditEvent";
+import MenuBuilder from "./pages/MenuBuilder";
+
 
 function App() {
   return (
@@ -29,6 +31,9 @@ function App() {
       <Route path="/event/:eventId" element={<EventPage />} />
       <Route path="/events/create" element={<CreateEvent />} />
       <Route path="/events/:id/edit" element={<EditEvent />} />
+      <Route path="/events/:id/menu-builder" element={<MenuBuilder />} />
+      
+
       
 
 

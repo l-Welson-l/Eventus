@@ -5,6 +5,9 @@ import API from "../api/auth";
 const ALL_FEATURES = ["menu", "moments", "community", "users", "leaderboard"];
 
 export default function EditEvent() {
+  const [menuMode, setMenuMode] = useState(null);
+// "upload" | "manual"
+
   const { id } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("access");
@@ -140,21 +143,65 @@ export default function EditEvent() {
       </div>
 
       {/* MENU UPLOAD */}
-      {features.menu && (
-        <div style={styles.card}>
-            <h3>Menu Upload</h3>
-            <input type="file" onChange={handleMenuChange} />
-            {currentMenu && (
-                <button
-                    style={styles.viewBtn}
-                    onClick={() => window.open(currentMenu, "_blank")}
-                >
-                    View Current Menu
-                </button>
-                )}
-            {menuFile && <p>Selected file: {menuFile.name}</p>}
-        </div>
-      )}
+      {/* MENU */}
+{features.menu && (
+  <div style={styles.card}>
+    <h3>Menu</h3>
+
+    {!menuMode && (
+      <>
+        <p>How would you like to create your menu?</p>
+
+        <button
+          style={styles.save}
+          onClick={() => setMenuMode("upload")}
+        >
+          Upload existing menu
+        </button>
+
+        <button
+          style={{ ...styles.cancel, marginLeft: 10 }}
+          onClick={() => setMenuMode("manual")}
+        >
+          Create menu manually
+        </button>
+      </>
+    )}
+
+    {menuMode === "upload" && (
+      <>
+        <h4>Upload menu</h4>
+        <input type="file" onChange={handleMenuChange} />
+
+        {currentMenu && (
+          <button
+            style={styles.viewBtn}
+            onClick={() => window.open(currentMenu, "_blank")}
+          >
+            View current menu
+          </button>
+        )}
+
+        {menuFile && <p>Selected file: {menuFile.name}</p>}
+      </>
+    )}
+
+    {menuMode === "manual" && (
+      <>
+        <h4>Manual menu builder</h4>
+        <p>Add categories and items one by one.</p>
+
+        <button
+          style={styles.save}
+          onClick={() => navigate(`/events/${id}/menu-builder`)}
+        >
+          Open menu builder
+        </button>
+      </>
+    )}
+  </div>
+)}
+
 
       {/* FEATURES */}
       <div style={styles.card}>
