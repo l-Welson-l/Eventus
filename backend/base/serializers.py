@@ -1,6 +1,7 @@
 from rest_framework import serializers
 import re
 from django.contrib.auth import authenticate
+from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, SubTopic, PostLike, CommentLike
 from .models import User, BusinessProfile, CustomerProfile, MagicLinkToken, EventFeature, EventMembership, Event, Comment, Post, MomentMedia, Moment
 from .utils import validate_email
 
@@ -127,9 +128,9 @@ class EventSerializer(serializers.ModelSerializer):
             "qr_code",
             "features",
 
-            "menu_file",   # ✅ added
+            "menu_file", 
             "cover_image",
-            "menu_file_url", # ✅ optional
+            "menu_file_url", 
             "features"
         ]
 
@@ -144,6 +145,7 @@ class EventSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
+    like_count = serializers.IntegerField(source="likes.count", read_only=True)
 
     class Meta:
         model = Comment
@@ -159,13 +161,26 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
-    comments = CommentSerializer(many=True, read_only=True)
-    image = serializers.ImageField(required=False)
     author_name = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    subtopic_title = serializers.CharField(
+        source="subtopic.title",
+        read_only=True
+    )
+    like_count = serializers.IntegerField(source="likes.count", read_only=True)
 
     class Meta:
         model = Post
-        fields = "__all__"
+        fields = [
+            "id",
+            "text",
+            "subtopic",
+            "subtopic_title",
+            "author_name",
+            "comment_count",
+            "like_count",
+            "created_at",
+        ]
         read_only_fields = ["event", "user", "anonymous_session"]
 
     def get_author_name(self, obj):
@@ -175,6 +190,13 @@ class PostSerializer(serializers.ModelSerializer):
             return f"anonymous_{str(obj.anonymous_session.session_id)[:4]}"
         return "Anonymous"
 
+    def get_comment_count(self, obj):
+        return obj.comments.count()
+
+class SubTopicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubTopic
+        fields = ["id", "title"]
 
 class MomentMediaSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()

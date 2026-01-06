@@ -1,222 +1,333 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/auth";
 
-export default function CommunityPage({ eventId }) {
+export default function CommunityPage({ eventId, onOpenPost }) {
   const [posts, setPosts] = useState([]);
   const [text, setText] = useState("");
-  const [image, setImage] = useState(null);
+  const [subtopic, setSubtopic] = useState("");
+  const [subtopics, setSubtopics] = useState([]);
+  const [activePost, setActivePost] = useState(null);
+  const [comments, setComments] = useState([]);
+const [email, setEmail] = useState("");
+const [emailError, setEmailError] = useState("");
+const [pendingAction, setPendingAction] = useState(null);
+const [commentText, setCommentText] = useState(""); 
+
 
   const [showAnonModal, setShowAnonModal] = useState(false);
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
 
-  /* -----------------------------
-     LOAD POSTS (polling = realtime-ish)
-  ------------------------------ */
-  useEffect(() => {
-    fetchPosts();
-    const interval = setInterval(fetchPosts, 3000);
-    return () => clearInterval(interval);
-  }, [eventId]);
-
-  const fetchPosts = async () => {
-    try {
-      const res = await API.get(`/events/${eventId}/posts/`);
-      setPosts(res.data);
-    } catch (err) {
-      console.error("Failed to fetch posts");
-    }
-  };
-
-  /* -----------------------------
-     SOFT GATE ON PAGE LOAD
-  ------------------------------ */
   useEffect(() => {
     const access = localStorage.getItem("access");
     const anon = localStorage.getItem("anonymous_session_id");
     const dismissed = localStorage.getItem("anon_prompt_dismissed");
 
     if (!access && !anon && !dismissed) {
-      setShowAnonModal(true);
+        setShowAnonModal(true);
     }
-  }, []);
+}, []);
 
-  /* -----------------------------
-     POST HANDLERS
-  ------------------------------ */
-  const submitPost = async () => {
-    if (!text && !image) return;
 
-    const access = localStorage.getItem("access");
-    const anon = localStorage.getItem("anonymous_session_id");
+  useEffect(() => {
+    fetchPosts();
+    fetchSubtopics();
+  }, [eventId]);
 
-    // HARD GATE
-    if (!access && !anon) {
-      setShowAnonModal(true);
-      return;
-    }
-
-    await actuallySubmitPost();
+  const fetchPosts = async () => {
+    const res = await API.get(`/events/${eventId}/posts/`);
+    setPosts(res.data);
   };
 
-  const actuallySubmitPost = async () => {
-    const formData = new FormData();
-    formData.append("text", text);
-    if (image) formData.append("image", image);
-
-    const anonId = localStorage.getItem("anonymous_session_id");
-    if (anonId) formData.append("anonymous_session_id", anonId);
-
-    try {
-      await API.post(
-        `/events/${eventId}/posts/`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      setText("");
-      setImage(null);
-      fetchPosts();
-    } catch (err) {
-      console.error("Post failed");
-    }
+  const fetchSubtopics = async () => {
+    const res = await API.get(`/events/${eventId}/subtopics/`);
+    setSubtopics(res.data);
   };
 
-  /* -----------------------------
-     ANON EMAIL SUBMIT
-  ------------------------------ */
-  const submitAnonEmail = async () => {
-    setEmailError("");
+    const submitPost = async () => {
+        const access = localStorage.getItem("access");
+        const anon = localStorage.getItem("anonymous_session_id");
 
-    if (!email.includes("@")) {
-      setEmailError("Enter a valid email");
-      return;
-    }
+        // 🔒 HARD GATE FIRST
+        if (!access && !anon) {
+            setPendingAction("post");
+            setShowAnonModal(true);
+            return;
+        }
 
-    try {
-      const res = await API.post("/auth/magic-link/", {
-        email,
-        anonymous_session_id: null,
-      });
+        // ✅ THEN validate
+        if (!text || !subtopic) return;
 
-      localStorage.setItem(
-        "anonymous_session_id",
-        res.data.anonymous_session_id
-      );
-      localStorage.removeItem("anon_prompt_dismissed");
+        await API.post(`/events/${eventId}/posts/`, {
+            text,
+            subtopic,
+            anonymous_session_id: anon,
+        });
 
-      setShowAnonModal(false);
-      setEmail("");
+        setText("");
+        setSubtopic("");
+        fetchPosts();
+    };
+    const submitComment = async () => {
+        if (!commentText.trim()) return;
 
-      setTimeout(actuallySubmitPost, 200);
-    } catch (err) {
-      setEmailError(
-        err.response?.data?.detail || "Failed to send email"
-      );
-    }
-  };
+        const access = localStorage.getItem("access");
+        const anon = localStorage.getItem("anonymous_session_id");
 
-  /* -----------------------------
-     UI
-  ------------------------------ */
+        if (!access && !anon) {
+            setPendingAction("comment");
+            setShowAnonModal(true);
+            return;
+        }
+
+        try {
+            await API.post(`/posts/${activePost.id}/comments/create/`, {
+            text: commentText,
+            anonymous_session_id: anon,
+            });
+
+            setCommentText("");
+
+            const res = await API.get(`/posts/${activePost.id}/comments/`);
+            setComments(res.data);
+        } catch (err) {
+            console.error("Failed to submit comment");
+        }
+    };
+
+
+    const openPost = async (post) => {
+        setActivePost(post);
+
+        try {
+            const res = await API.get(`/posts/${post.id}/comments/`);
+            setComments(res.data);
+        } catch (err) {
+            console.error("Failed to load comments");
+        }
+    };
+    const submitAnonEmail = async () => {
+        setEmailError("");
+
+        if (!email.includes("@")) {
+            setEmailError("Enter a valid email");
+            return;
+        }
+
+        try {
+            const res = await API.post("/auth/magic-link/", {
+            email,
+            anonymous_session_id: null,
+            });
+
+            localStorage.setItem(
+            "anonymous_session_id",
+            res.data.anonymous_session_id
+            );
+
+            localStorage.removeItem("anon_prompt_dismissed");
+
+            setShowAnonModal(false);
+            setEmail("");
+
+            // retry the blocked action
+            setTimeout(() => {
+            if (pendingAction === "post") submitPost();
+            if (pendingAction === "comment") submitComment();
+            setPendingAction(null);
+            }, 200);
+        } catch (err) {
+            setEmailError(
+            err.response?.data?.detail || "Failed to send email"
+            );
+        }
+    };
+
+    const likePost = async (postId) => {
+        
+        const anon = localStorage.getItem("anonymous_session_id");
+
+        try {
+            await API.post(`/posts/${postId}/like/`, {
+            anonymous_session_id: anon,
+            });
+            fetchPosts(); // refresh counts
+        } catch (err) {
+            setShowAnonModal(true);
+        }
+    };
+
+    const likeComment = async (commentId) => {
+        const anon = localStorage.getItem("anonymous_session_id");
+
+        await API.post(`/comments/${commentId}/like/`, {
+            anonymous_session_id: anon,
+        });
+
+        openPost(activePost); // reload comments
+    };
+
+
+
   return (
     <div style={{ padding: 20 }}>
+    <h2>Discussions</h2>
 
-      <h2>Community</h2>
+    {!activePost && (
+        <>
+        {/* CREATE POST */}
+        <div style={{ marginBottom: 20 }}>
+            <select
+            value={subtopic}
+            onChange={(e) => setSubtopic(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+            >
+            <option value="">Select topic</option>
+            {subtopics.map((s) => (
+                <option key={s.id} value={s.id}>
+                {s.title}
+                </option>
+            ))}
+            </select>
 
-      {/* CREATE POST */}
-      <div style={{ marginBottom: 20 }}>
-        <textarea
-          placeholder="Write something..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ width: "100%", padding: 10 }}
-        />
-
-        <input
-          type="file"
-          onChange={(e) => setImage(e.target.files[0])}
-        />
-
-        <button onClick={submitPost} style={{ marginTop: 10 }}>
-          Post
-        </button>
-      </div>
-
-      {/* POSTS */}
-      {posts.map((post) => (
-        <div
-          key={post.id}
-          style={{
-            border: "1px solid #ddd",
-            padding: 10,
-            marginBottom: 10,
-            borderRadius: 6,
-          }}
-        >
-          <small style={{ color: "#666" }}>
-            {post.author_name}
-          </small>
-
-          <p>{post.text}</p>
-
-          {post.image && (
-            <img
-              src={post.image}
-              alt=""
-              style={{ maxWidth: "100%", borderRadius: 6 }}
+            <textarea
+            placeholder="Start a discussion..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            style={{ width: "100%", padding: 10, marginTop: 10 }}
             />
-          )}
-        </div>
-      ))}
 
-      {/* ANON MODAL */}
-      {showAnonModal && (
+            <button onClick={submitPost} style={{ marginTop: 10 }}>
+            Post
+            </button>
+        </div>
+
+        {/* POSTS LIST */}
+        {posts.map((post) => (
+            <div
+            key={post.id}
+            onClick={() => openPost(post)}
+            style={{
+                border: "1px solid #ddd",
+                padding: 12,
+                marginBottom: 10,
+                borderRadius: 6,
+                cursor: "pointer",
+            }}
+            >
+            <strong>{post.subtopic_title}</strong>
+            <small>{post.author_name}</small>
+            <p>{post.text}</p>
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    likePost(post.id);
+                }}
+                >
+                ❤️ {post.like_count}
+            </button>
+
+            <small style={{ color: "#666" }}>
+                {post.comment_count} comments
+            </small>
+            </div>
+        ))}
+        </>
+    )}
+
+    {activePost && (
+        <div>
+        <button
+            onClick={() => {
+            setActivePost(null);
+            setComments([]);
+            }}
+        >
+            ← Back
+        </button>
+
+        <h3>{activePost.subtopic_title}</h3>
+        <p>{activePost.text}</p>
+
+        <small style={{ color: "#666" }}>
+            {activePost.author_name}
+        </small>
+
+        <hr />
+
+        {/* COMMENTS */}
+        {comments.length === 0 ? (
+            <p style={{ color: "#999" }}>No comments yet</p>
+        ) : (
+            comments.map((c) => (
+            <div key={c.id} style={{ marginBottom: 10 }}>
+                <small style={{ fontWeight: "bold" }}>
+                {c.author_name}
+                </small>
+                <p>{c.text}</p>
+                <button onClick={() => likeComment(c.id)}>
+                    ❤️ {c.like_count}
+                </button>
+            </div>
+            ))
+        )}
+
+        {/* ADD COMMENT */}
+        <textarea
+            placeholder="Write a comment..."
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+        />
+
+        <button onClick={submitComment}>
+            Comment
+        </button>
+        </div>
+    )}
+    {showAnonModal && (
         <div style={modalOverlay}>
-          <div style={modalBox}>
+            <div style={modalBox}>
             <h3>Enter your email</h3>
-            <p>You need an email to post.</p>
+            <p>You need an email to post or comment.</p>
 
             <input
-              type="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: "100%", padding: 8 }}
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ width: "100%", padding: 8 }}
             />
 
             {emailError && (
-              <p style={{ color: "red" }}>{emailError}</p>
+                <p style={{ color: "red" }}>{emailError}</p>
             )}
 
             <div style={{ marginTop: 10 }}>
-              <button onClick={submitAnonEmail}>
+                <button onClick={submitAnonEmail}>
                 Continue
-              </button>
+                </button>
 
-              <button
+                <button
                 style={{ marginLeft: 10 }}
                 onClick={() => {
-                  localStorage.setItem(
+                    localStorage.setItem(
                     "anon_prompt_dismissed",
                     "true"
-                  );
-                  setShowAnonModal(false);
+                    );
+                    setShowAnonModal(false);
                 }}
-              >
+                >
                 Close
-              </button>
+                </button>
             </div>
-          </div>
+            </div>
         </div>
-      )}
+    )}
     </div>
+
   );
 }
 
-/* -----------------------------
-   STYLES
------------------------------- */
+
 const modalOverlay = {
   position: "fixed",
   inset: 0,

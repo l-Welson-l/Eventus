@@ -15,6 +15,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, SubTopic, PostLike, CommentLike
+from django.contrib.auth.hashers import make_password
+from .utils import generate_qr_base64
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, SubTopicSerializer
 from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
@@ -285,10 +289,35 @@ def complete_magic_signup(request):
 
     # 3️⃣ Merge anonymous data
     if m.anonymous_session:
-        Post.objects.filter(anonymous_session=m.anonymous_session).update(
+        anon = m.anonymous_session
+
+        # Attach anon session to user (IMPORTANT)
+        anon.user = user
+        anon.save()
+
+        # Update posts
+        Post.objects.filter(
+            anonymous_session=anon
+        ).update(
             user=user,
             anonymous_session=None
         )
+
+        # Update comments
+        Comment.objects.filter(
+            anonymous_session=anon
+        ).update(
+            user=user,
+            anonymous_session=None
+        )
+
+        PostLike.objects.filter(
+            anonymous_session=m.anonymous_session
+        ).update(user=user, anonymous_session=None)
+
+        CommentLike.objects.filter(
+            anonymous_session=m.anonymous_session
+        ).update(user=user, anonymous_session=None)
 
     # 4️⃣ Mark token used
     m.used = True
@@ -402,6 +431,11 @@ class CreateEventView(APIView):
             name=request.data["name"],
             description=request.data.get("description", "")
         )
+        SubTopic.objects.get_or_create(
+            event=event,
+            is_default=True,
+            defaults={"title": "Discussion"}
+        )
 
         selected_features = request.data.get("features", [])
 
@@ -489,20 +523,41 @@ class EventPostListCreateView(EventJoinMixin, generics.ListCreateAPIView):
     serializer_class = PostSerializer
 
     def get_queryset(self):
-        return Post.objects.filter(
-            event_id=self.kwargs["event_id"]
-        ).select_related("user", "anonymous_session") \
-         .prefetch_related("comments")
+        return (
+            Post.objects
+            .filter(event_id=self.kwargs["event_id"])
+            .select_related("user", "anonymous_session", "subtopic")
+            .prefetch_related("comments")
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
         event = get_object_or_404(Event, id=self.kwargs["event_id"])
         author = self.ensure_membership(self.request, event)
 
-        serializer.save(
-            event=event,
-            **author
+        serializer.save(event=event, **author)
+
+
+class SubTopicListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = SubTopicSerializer
+
+    def get_queryset(self):
+        return SubTopic.objects.filter(
+            event_id=self.kwargs["event_id"]
         )
 
+class SubTopicCreateView(generics.CreateAPIView):
+    serializer_class = SubTopicSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        event = get_object_or_404(Event, id=self.kwargs["event_id"])
+
+        if event.admin != self.request.user:
+            raise PermissionDenied("Only event admin can create subtopics")
+
+        serializer.save(event=event)
 
 class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
     permission_classes = [AllowAny]
@@ -516,6 +571,52 @@ class CommentCreateView(EventJoinMixin, generics.CreateAPIView):
             post=post,
             **author
         )
+class CommentListView(generics.ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        return (
+            Comment.objects
+            .filter(post_id=self.kwargs["post_id"])
+            .select_related("user", "anonymous_session")
+            .order_by("created_at")
+        )
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def toggle_post_like(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    author = EventJoinMixin().ensure_membership(request, post.event)
+
+    like, created = PostLike.objects.get_or_create(
+        post=post,
+        **author
+    )
+
+    if not created:
+        like.delete()
+        return Response({"liked": False, "like_count": post.likes.count()})
+
+    return Response({"liked": True, "like_count": post.likes.count()})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def toggle_comment_like(request, comment_id):
+    comment = get_object_or_404(Comment, id=comment_id)
+    author = EventJoinMixin().ensure_membership(request, comment.post.event)
+
+    like, created = CommentLike.objects.get_or_create(
+        comment=comment,
+        **author
+    )
+
+    if not created:
+        like.delete()
+        return Response({"liked": False, "like_count": comment.likes.count()})
+
+    return Response({"liked": True, "like_count": comment.likes.count()})
 
 class EventMomentsListView(generics.ListAPIView):
     serializer_class = MomentSerializer
