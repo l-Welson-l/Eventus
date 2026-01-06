@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/auth";
 import "./Moments.css";
+const anonSessionId = localStorage.getItem("anon_session_id");
 
 export default function Moments({ eventId }) {
   const [moments, setMoments] = useState([]);
