@@ -54,13 +54,21 @@ export default function MenuBuilder() {
   // Save item
   const saveItem = async (categoryId, item) => {
   try {
-    const res = await API.patch(`/menu/items/${item.id}/`, {
-      name: item.name,
-      price: parseFloat(item.price) || 0,
-      description: item.description || "",
-    });
+    const formData = new FormData();
+    formData.append("name", item.name);
+    formData.append("price", parseFloat(item.price) || 0);
+    formData.append("description", item.description || "");
 
-    // Update state with backend response
+    if (item.imageFile) {
+      formData.append("image", item.imageFile);
+    }
+
+    const res = await API.patch(
+      `/menu/items/${item.id}/`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+
     setMenu(prev => ({
       ...prev,
       categories: prev.categories.map(cat =>
@@ -76,13 +84,11 @@ export default function MenuBuilder() {
     }));
 
     setEditingItem(null);
-    alert("Item saved successfully!");
   } catch (err) {
     console.error(err.response?.data || err);
-    alert("Failed to save item. Check console for details.");
+    alert("Failed to save item");
   }
 };
-
 
 
   if (!menu) return <p>Loading menu…</p>;
@@ -99,6 +105,25 @@ export default function MenuBuilder() {
             const isEditing = editingItem?.itemId === item.id;
             return (
               <div key={item.id} style={styles.itemRow}>
+              {/* IMAGE PREVIEW */}
+                {item.image && (
+                  <img
+                    src={
+                      item.image.startsWith("http")
+                        ? item.image
+                        : `http://localhost:8000${item.image}`
+                    }
+                    alt="item"
+                    style={{
+                      width: 80,
+                      height: 80,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                      border: "1px solid #ccc",
+                    }}
+                  />
+                )}
+
                 <input
                   style={styles.input}
                   value={item.name}
@@ -172,6 +197,33 @@ export default function MenuBuilder() {
                   placeholder="Description (optional)"
                 />
 
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={!isEditing}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    setMenu(prev => ({
+                      ...prev,
+                      categories: prev.categories.map(c =>
+                        c.id === cat.id
+                          ? {
+                              ...c,
+                              items: c.items.map(i =>
+                                i.id === item.id
+                                  ? { ...i, imageFile: file }
+                                  : i
+                              ),
+                            }
+                          : c
+                      ),
+                    }));
+                  }}
+                />
+
+
                 {!isEditing && (
                   <button
                     style={styles.editBtn}
@@ -197,6 +249,35 @@ export default function MenuBuilder() {
                     >
                       Cancel
                     </button>
+                    <button
+                    style={{
+                      background: "#000",
+                      color: "#fff",
+                      border: "none",
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                    onClick={async () => {
+                      if (!window.confirm("Delete this item?")) return;
+
+                      await API.delete(`/menu/items/${item.id}/`);
+
+                      setMenu(prev => ({
+                        ...prev,
+                        categories: prev.categories.map(c =>
+                          c.id === cat.id
+                            ? {
+                                ...c,
+                                items: c.items.filter(i => i.id !== item.id),
+                              }
+                            : c
+                        ),
+                      }));
+                    }}
+                  >
+                    Delete
+                  </button>
                   </>
                 )}
               </div>
@@ -223,6 +304,7 @@ export default function MenuBuilder() {
     </div>
   );
 }
+
 
 // STYLES
 const styles = {
@@ -276,4 +358,6 @@ const styles = {
     cursor: "pointer",
     color: "#fff",
   },
+
+  
 };

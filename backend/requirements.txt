@@ -9,3 +9,7 @@ python-dotenv==1.2.1
 sqlparse==0.5.4
 tzdata==2025.2
 qrcode[pil]
+pytesseract
+pdf2image
+Pillow
+opencv-python-headless

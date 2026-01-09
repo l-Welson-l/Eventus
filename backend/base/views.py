@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from zipfile import ZipFile, ZIP_DEFLATED
 from io import BytesIO
-from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike, Menu, MenuItem
+from .models import MagicLinkToken, User, BusinessProfile, CustomerProfile, AnonymousSession, Post, Event, EventFeature, EventMembership, Comment, Moment, MomentMedia, MomentLike, Menu, MenuItem, MenuCategory
 from django.contrib.auth.hashers import make_password
 from .utils import generate_qr_base64
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, EventSerializer, EventFeatureSerializer, CommentSerializer, PostSerializer, MomentSerializer, MenuCategorySerializer, MenuItemSerializer, MenuSerializer
@@ -24,7 +24,7 @@ from django.views import View
 import os
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db import IntegrityError, transaction
-
+from .ocr import extract_text_from_pdf, parse_menu
 
 MAGIC_LINK_EXPIRY_DAYS = 10
 
@@ -456,10 +456,35 @@ def update_event(request, event_id):
     event.name = request.data.get("name", event.name)
     event.description = request.data.get("description", event.description)
 
-    if "menu_file" in request.FILES:
-        event.menu_file = request.FILES["menu_file"]
     if "cover_image" in request.FILES:
         event.cover_image = request.FILES["cover_image"]
+
+    if "menu_file" in request.FILES:
+        event.menu_file = request.FILES["menu_file"]
+        event.save()  # IMPORTANT: save before OCR so file exists
+
+        # 🔥 OCR STARTS HERE
+        text = extract_text_from_pdf(event.menu_file.path)
+        items = parse_menu(text)
+
+        # Ensure menu exists
+        menu, _ = Menu.objects.get_or_create(event=event)
+
+        # Optional: clear old OCR items
+        MenuItem.objects.filter(category__menu=menu).delete()
+
+        category, _ = MenuCategory.objects.get_or_create(
+            menu=menu,
+            name="Menu"
+        )
+
+        for item in items:
+            MenuItem.objects.create(
+                category=category,
+                name=item["name"],
+                price=item["price"],
+                description=item["description"]
+            )
 
     event.save()
 
@@ -624,16 +649,22 @@ def create_item(request):
     serializer.save()
     return Response(serializer.data, status=201)
 
-@api_view(["PATCH"])
+@api_view(["PATCH", "DELETE"])
 def update_item(request, item_id):
-    try:
-        item = MenuItem.objects.get(id=item_id)
-    except MenuItem.DoesNotExist:
-        return Response({"detail": "Item not found"}, status=404)
+    item = get_object_or_404(MenuItem, id=item_id)
 
-    serializer = MenuItemSerializer(item, data=request.data, partial=True)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+    if request.method == "PATCH":
+        serializer = MenuItemSerializer(
+            item,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    if request.method == "DELETE":
+        item.delete()
+        return Response(status=204)
 
 
